@@ -107,11 +107,11 @@ class EmailResponse(BaseModel):
     message: Optional[str] = None
 
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
+@app.get("/api")
+async def api_info():
+    """API information endpoint."""
     return {
-        "message": "Cold Outreach AI Agent API",
+        "message": "EmailCraft AI API",
         "version": "2.0.0",
         "status": "operational"
     }
@@ -340,9 +340,6 @@ async def generate_email_legacy(request: EmailRequest):
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
 if FRONTEND_DIR.exists():
-    # Mount static files (CSS, JS, images)
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
-    
     @app.get("/")
     async def serve_frontend():
         """Serve the main frontend page."""
