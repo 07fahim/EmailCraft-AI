@@ -57,6 +57,11 @@ class EmailGeneration(Base):
     # Which portfolio items matched?
     portfolio_items_used = Column(String)  # Store as comma-separated
     
+    # Evaluation feedback (NEW)
+    strengths = Column(Text, nullable=True)  # Store as JSON array
+    issues = Column(Text, nullable=True)  # Store as JSON array
+    alternative_subject_lines = Column(Text, nullable=True)  # Store as JSON array
+    
     # Metadata
     sender_name = Column(String)
     sender_company = Column(String)
@@ -84,6 +89,9 @@ class EmailGeneration(Base):
             "spam_risk_score": self.spam_risk_score,
             "templates_used": self.templates_used,
             "portfolio_items_used": self.portfolio_items_used,
+            "strengths": self.strengths,
+            "issues": self.issues,
+            "alternative_subject_lines": self.alternative_subject_lines,
             "sender_name": self.sender_name,
             "sender_company": self.sender_company
         }

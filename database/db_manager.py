@@ -9,6 +9,7 @@ For beginners: Think of this as helper functions that let you:
 No need to understand SQL - just use these functions!
 """
 
+import json
 import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
@@ -87,9 +88,14 @@ class DatabaseManager:
                 spam_risk_score=email_data.get("spam_risk_score"),
                 templates_used=",".join(email_data.get("templates_used", [])),
                 portfolio_items_used=",".join(email_data.get("portfolio_items_used", [])),
+                strengths=json.dumps(email_data.get("strengths", [])),  # Store as JSON string
+                issues=json.dumps(email_data.get("issues", [])),  # Store as JSON string
+                alternative_subject_lines=json.dumps(email_data.get("alternative_subject_lines", [])),  # Store as JSON string
                 sender_name=email_data.get("sender_name"),
                 sender_company=email_data.get("sender_company")
             )
+            
+            logger.info(f"💾 Saving to DB - Strengths: {email_data.get('strengths')}, Issues: {email_data.get('issues')}, Alt Subjects: {email_data.get('alternative_subject_lines')}")
             
             # Save to database
             self.session.add(email)

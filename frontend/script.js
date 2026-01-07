@@ -484,6 +484,26 @@ function clearCsv() {
     document.getElementById('batchResults').style.display = 'none';
 }
 
+function resetBatch() {
+    // Clear all data
+    csvData = [];
+    batchResults = [];
+    csvFileInput.value = '';
+    
+    // Hide all sections
+    document.getElementById('csvPreview').style.display = 'none';
+    document.getElementById('batchProgress').style.display = 'none';
+    document.getElementById('batchResults').style.display = 'none';
+    
+    // Clear results table
+    document.getElementById('resultsTableBody').innerHTML = '';
+    
+    // Reset upload zone
+    uploadZone.classList.remove('dragover');
+    
+    showToast('Ready for new batch upload', 'success');
+}
+
 document.getElementById('startBatchBtn').addEventListener('click', startBatchProcessing);
 
 async function startBatchProcessing() {
@@ -980,12 +1000,44 @@ function viewHistoryItem(idx) {
     const item = historyData[idx];
     if (!item) return;
     
+    console.log('History item data:', item);
+    console.log('Strengths field:', item.strengths);
+    console.log('Issues field:', item.issues);
+    console.log('Alt subjects field:', item.alternative_subject_lines);
+    
     // Switch to single tab and display
     document.querySelector('[data-tab="single"]').click();
     
     // FIXED: Better portfolio parsing
     const portfolioItems = item.portfolio_items_used ? 
         parsePortfolioItems(item.portfolio_items_used) : [];
+    
+    // Parse stored JSON strings for strengths, issues, alt subjects
+    const parseJsonField = (field) => {
+        if (!field) return [];
+        // If it's already an array, return it
+        if (Array.isArray(field)) return field;
+        // If it's a string, try to parse it
+        if (typeof field === 'string') {
+            try {
+                const parsed = JSON.parse(field);
+                console.log('Parsed field:', field, '→', parsed);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                console.error('Error parsing field:', field, e);
+                return [];
+            }
+        }
+        return [];
+    };
+    
+    const strengths = parseJsonField(item.strengths);
+    const issues = parseJsonField(item.issues);
+    const altSubjects = parseJsonField(item.alternative_subject_lines);
+    
+    console.log('Parsed strengths:', strengths);
+    console.log('Parsed issues:', issues);
+    console.log('Parsed alt subjects:', altSubjects);
     
     // Format history item to match generate API response structure
     currentEmail = {
@@ -1001,12 +1053,14 @@ function viewHistoryItem(idx) {
             length_score: item.length_score || 7,
             personalization_score: item.personalization_score || 7,
             spam_risk_score: item.spam_risk_score || 3,
-            strengths: [],
-            issues: []
+            strengths: strengths,
+            issues: issues
         },
-        alternative_subject_lines: [],
+        alternative_subject_lines: altSubjects,
         portfolio_items_used: portfolioItems
     };
+    
+    console.log('Current email object:', currentEmail);
     
     displayEmailResult(currentEmail);
 }
@@ -1214,31 +1268,6 @@ function displayTemplatePerformance(templates) {
 // Export Functions
 // ============================================
 
-function exportHistoryCSV() {
-    if (!historyData || historyData.length === 0) {
-        showToast('No data to export', 'error');
-        return;
-    }
-    
-    const headers = ['Company', 'Role', 'Template', 'Score', 'Subject', 'Created At'];
-    const rows = historyData.map(item => [
-        item.company_name || '',
-        item.role || '',
-        item.template_used || '',
-        item.score || '',
-        (item.subject || '').replace(/,/g, ' '),
-        item.created_at || ''
-    ]);
-    
-    const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-    
-    downloadFile(csvContent, 'email_history.csv', 'text/csv');
-    showToast('CSV exported successfully!');
-}
-
 function exportHistoryExcel() {
     if (!historyData || historyData.length === 0) {
         showToast('No data to export', 'error');
@@ -1248,7 +1277,17 @@ function exportHistoryExcel() {
     // Create XML-based Excel format (works without external libraries)
     const escapeXml = (str) => {
         if (!str) return '';
-        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+    
+    const parseJsonField = (field) => {
+        if (!field) return '';
+        try {
+            const parsed = typeof field === 'string' ? JSON.parse(field.replace(/'/g, '"')) : field;
+            return Array.isArray(parsed) ? parsed.join('; ') : parsed;
+        } catch {
+            return field;
+        }
     };
     
     let xml = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>';
@@ -1257,7 +1296,14 @@ function exportHistoryExcel() {
     
     // Headers
     xml += '<Row>';
-    ['Company', 'Role', 'Template', 'Score', 'Subject', 'Created At'].forEach(h => {
+    const headers = [
+        'ID', 'Company', 'Role', 'Industry', 'Recipient', 'Subject Line', 'Email Body', 'CTA',
+        'Initial Score', 'Final Score', 'Clarity', 'Tone', 'Length', 
+        'Personalization', 'Spam Risk', 'Optimization Applied',
+        'Strengths', 'Issues', 'Alternative Subject Lines',
+        'Sender Name', 'Sender Company', 'Created At'
+    ];
+    headers.forEach(h => {
         xml += `<Cell><Data ss:Type="String">${h}</Data></Cell>`;
     });
     xml += '</Row>';
@@ -1265,11 +1311,27 @@ function exportHistoryExcel() {
     // Data rows
     historyData.forEach(item => {
         xml += '<Row>';
+        xml += `<Cell><Data ss:Type="Number">${item.id || 0}</Data></Cell>`;
         xml += `<Cell><Data ss:Type="String">${escapeXml(item.company_name)}</Data></Cell>`;
         xml += `<Cell><Data ss:Type="String">${escapeXml(item.role)}</Data></Cell>`;
-        xml += `<Cell><Data ss:Type="String">${escapeXml(item.template_used)}</Data></Cell>`;
-        xml += `<Cell><Data ss:Type="Number">${item.score || 0}</Data></Cell>`;
-        xml += `<Cell><Data ss:Type="String">${escapeXml(item.subject)}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${escapeXml(item.industry)}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${escapeXml(item.recipient_name)}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${escapeXml(item.subject_line)}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${escapeXml(item.body)}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${escapeXml(item.cta)}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="Number">${item.initial_score || 0}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="Number">${item.final_score || 0}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="Number">${item.clarity_score || 0}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="Number">${item.tone_score || 0}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="Number">${item.length_score || 0}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="Number">${item.personalization_score || 0}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="Number">${item.spam_risk_score || 0}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${item.optimization_applied ? 'Yes' : 'No'}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${escapeXml(parseJsonField(item.strengths))}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${escapeXml(parseJsonField(item.issues))}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${escapeXml(parseJsonField(item.alternative_subject_lines))}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${escapeXml(item.sender_name)}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${escapeXml(item.sender_company)}</Data></Cell>`;
         xml += `<Cell><Data ss:Type="String">${escapeXml(item.created_at)}</Data></Cell>`;
         xml += '</Row>';
     });

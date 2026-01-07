@@ -360,6 +360,9 @@
 
                         <!-- Export Button -->
                         <div class="batch-export-buttons">
+                            <button class="btn btn-secondary" onclick="resetBatch()">
+                                <i class="fas fa-redo"></i> Process New Batch
+                            </button>
                             <button class="btn btn-primary" onclick="downloadBatchResultsExcel()">
                                 <i class="fas fa-file-excel"></i> Download Results (Excel)
                             </button>
@@ -390,9 +393,6 @@
                     <div class="header-actions">
                         <button class="btn btn-secondary" onclick="loadHistory()">
                             <i class="fas fa-sync"></i> Refresh
-                        </button>
-                        <button class="btn btn-primary" onclick="exportHistoryCSV()">
-                            <i class="fas fa-file-csv"></i> Export CSV
                         </button>
                         <button class="btn btn-primary" onclick="exportHistoryExcel()">
                             <i class="fas fa-file-excel"></i> Export Excel

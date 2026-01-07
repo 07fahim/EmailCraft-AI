@@ -196,8 +196,13 @@ class PlannerAgent:
                 "templates_used": [t.template.id for t in retrieved_templates],
                 "portfolio_items_used": [item["title"] for item in portfolio_items],
                 "sender_name": request.sender_name,
-                "sender_company": request.sender_company
+                "sender_company": request.sender_company,
+                "strengths": optimized_email.evaluation.strengths,
+                "issues": optimized_email.evaluation.issues,
+                "alternative_subject_lines": optimized_email.alternative_subject_lines
             }
+            
+            logger.info(f"📝 Email data to save - Strengths: {email_data.get('strengths')}, Issues: {email_data.get('issues')}, Alt Subjects: {email_data.get('alternative_subject_lines')}")
             
             email_id = self.db.save_email(email_data)
             result["email_id"] = email_id  # Add email ID to result
