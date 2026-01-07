@@ -1,0 +1,96 @@
+# GitHub Actions CI/CD for Cold Email AI
+# Auto-deploys to Render on push to main
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # Test Job - Runs on every push/PR
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Run syntax check
+        run: |
+          python -m py_compile main.py
+          python -m py_compile agents/*.py
+          python -m py_compile utils/*.py
+          python -m py_compile models/*.py
+
+      - name: Run tests
+        run: |
+          python -c "from agents.planner_agent import PlannerAgent; print('✅ Planner Agent OK')"
+          python -c "from agents.evaluation_agent import EvaluationAgent; print('✅ Evaluation Agent OK')"
+          python -c "from agents.generation_agent import EmailGenerationAgent; print('✅ Generation Agent OK')"
+          python -c "from models.schemas import AgentRequest; print('✅ Schemas OK')"
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+
+  # Deploy Job - Only on push to main (not PRs)
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Render
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+
+      - name: Deployment notification
+        run: |
+          echo "🚀 Deployed to Render successfully!"
+          echo "Backend: https://cold-email-api.onrender.com"
+          echo "Frontend: https://cold-email-frontend.onrender.com"
+
+  # Lint Job - Code quality check
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install linters
+        run: |
+          pip install flake8 black
+
+      - name: Check formatting with Black
+        run: |
+          black --check --diff . || echo "::warning::Some files need formatting. Run 'black .' locally."
+        continue-on-error: true
+
+      - name: Lint with Flake8
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || echo "::warning::Linting issues found"
+        continue-on-error: true

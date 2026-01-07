@@ -1,0 +1,19 @@
+# render.yaml - Render Blueprint for EmailCraft AI
+# Single Docker deployment serving both API and Frontend
+
+services:
+  - type: web
+    name: emailcraft-ai
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false # Set manually in Render dashboard
+      - key: GROQ_MODEL
+        value: llama-3.1-8b-instant
+      - key: ANONYMIZED_TELEMETRY
+        value: "False"
+    healthCheckPath: /health
+    autoDeploy: true

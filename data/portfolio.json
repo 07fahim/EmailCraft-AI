@@ -1,0 +1,58 @@
+{
+  "items": [
+    {
+      "id": "portfolio_1",
+      "title": "AI-Powered CRM Implementation for SaaS Startup",
+      "tech_stack": "Python, TensorFlow, React, AWS, PostgreSQL, Redis",
+      "industry": "SaaS",
+      "description": "Built an AI-powered CRM system with automated lead scoring, predictive analytics, and smart email sequences. Integrated with Salesforce and HubSpot.",
+      "outcomes": "40% faster sales cycle, 25% increase in conversion rate, 60% reduction in manual data entry, $500K ARR increase",
+      "link": "https://yourportfolio.com/projects/ai-crm"
+    },
+    {
+      "id": "portfolio_2",
+      "title": "Cloud Infrastructure Optimization for FinTech",
+      "tech_stack": "Kubernetes, Docker, AWS, Terraform, CI/CD, Datadog",
+      "industry": "FinTech",
+      "description": "Redesigned cloud infrastructure for a financial services company, implementing auto-scaling, cost optimization, and improved security compliance.",
+      "outcomes": "35% cost reduction, 50% faster deployments, 99.9% uptime achieved, PCI-DSS compliance",
+      "link": "https://yourportfolio.com/projects/cloud-optimization"
+    },
+    {
+      "id": "portfolio_3",
+      "title": "Real-Time Analytics Dashboard for E-commerce",
+      "tech_stack": "React, Node.js, PostgreSQL, Redis, D3.js, WebSockets",
+      "industry": "E-commerce",
+      "description": "Created a real-time analytics platform for an e-commerce marketplace with live sales tracking, customer behavior analysis, and inventory management.",
+      "outcomes": "Real-time insights for 1M+ daily users, 60% faster decision-making, $2M revenue increase in 6 months",
+      "link": "https://yourportfolio.com/projects/analytics-dashboard"
+    },
+    {
+      "id": "portfolio_4",
+      "title": "DevOps Automation Platform",
+      "tech_stack": "Python, Jenkins, Docker, Kubernetes, Ansible, Prometheus",
+      "industry": "Technology",
+      "description": "Built end-to-end DevOps automation platform with CI/CD pipelines, infrastructure as code, and automated testing frameworks.",
+      "outcomes": "70% reduction in deployment time, 90% fewer production issues, 5x faster release cycles",
+      "link": "https://yourportfolio.com/projects/devops-automation"
+    },
+    {
+      "id": "portfolio_5",
+      "title": "Machine Learning Pipeline for Healthcare",
+      "tech_stack": "Python, TensorFlow, Apache Airflow, AWS SageMaker, PostgreSQL",
+      "industry": "Healthcare",
+      "description": "Developed ML pipeline for medical diagnostics with HIPAA-compliant data processing and real-time model inference.",
+      "outcomes": "95% diagnostic accuracy, 80% reduction in processing time, FDA-compliant deployment",
+      "link": "https://yourportfolio.com/projects/ml-healthcare"
+    },
+    {
+      "id": "portfolio_6",
+      "title": "Microservices Migration for Enterprise",
+      "tech_stack": "Java, Spring Boot, Kubernetes, RabbitMQ, MongoDB, PostgreSQL",
+      "industry": "Enterprise",
+      "description": "Led migration from monolithic architecture to microservices for enterprise software company serving 10K+ customers.",
+      "outcomes": "3x improved scalability, 50% faster feature delivery, 40% reduction in infrastructure costs",
+      "link": "https://yourportfolio.com/projects/microservices-migration"
+    }
+  ]
+}

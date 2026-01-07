@@ -1,0 +1,39 @@
+You are an expert job posting analyst specializing in extracting structured information from job postings.
+
+Analyze the following job posting content and extract key information that will be used to create highly personalized cold outreach emails.
+
+Job Posting Content:
+{job_content}
+
+Your task is to extract structured information that reveals:
+- What role they're hiring for (EXACT job title)
+- What skills and technologies they need
+- What level of experience they're seeking
+- What problems they're trying to solve (indicated by responsibilities)
+- What keywords indicate their priorities
+
+CRITICAL INSTRUCTIONS:
+1. Extract the EXACT job title as stated - do NOT change or interpret it
+2. Company name should be ONLY the company name (e.g., "Block" not "Block, Inc." unless that's exactly how it's written)
+3. Skills should be specific technologies, not generic terms
+4. Experience should be a simple string like "5+ years" or "Senior level"
+
+Return ONLY valid JSON with these fields (no markdown, no explanations):
+{{
+  "role": "exact job title from posting",
+  "skills": ["Python", "TensorFlow", "AWS", "etc"],
+  "experience": "experience level or years required",
+  "responsibilities": ["responsibility 1", "responsibility 2", "responsibility 3"],
+  "keywords": ["keyword1", "keyword2", "keyword3"],
+  "company": "company name only" or null
+}}
+
+IMPORTANT:
+- role: Must be the EXACT title (e.g., "Machine Learning Engineer" not "ML Engineer" unless that's what's written)
+- skills: Array of specific technologies/tools mentioned
+- experience: String (e.g., "2+ years", "Senior", "5-7 years")
+- responsibilities: Array of 3-5 key duties
+- keywords: Array of important terms that indicate priorities
+- company: Just the company name, null if not found
+
+Return ONLY the JSON object, nothing else.

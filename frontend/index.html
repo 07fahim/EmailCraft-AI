@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmailCraft AI - Professional Email Generator</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <i class="fas fa-envelope-open-text"></i>
+            <span>EmailCraft AI</span>
+        </div>
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="single">
+                <i class="fas fa-envelope"></i> New Email
+            </button>
+            <button class="tab-btn" data-tab="batch">
+                <i class="fas fa-layer-group"></i> Batch Emails
+            </button>
+            <button class="tab-btn" data-tab="history">
+                <i class="fas fa-history"></i> History
+            </button>
+            <button class="tab-btn" data-tab="analytics">
+                <i class="fas fa-chart-bar"></i> Analytics
+            </button>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        <!-- Single Email Tab -->
+        <section id="single" class="tab-content active">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Create Professional Outreach Email</h1>
+                    <p>AI-powered personalization with intelligent persona analysis and portfolio matching</p>
+                </div>
+
+                <div class="grid-2">
+                    <!-- Input Card -->
+                    <div class="card input-card">
+                        <div class="card-header">
+                            <i class="fas fa-edit"></i>
+                            <h2>Email Details</h2>
+                        </div>
+                        <form id="emailForm">
+                            <div class="form-group">
+                                <label for="jobUrl">
+                                    <i class="fas fa-link"></i> Job URL
+                                </label>
+                                <input type="url" id="jobUrl" placeholder="https://linkedin.com/jobs/view/..." required>
+                                <span class="hint">LinkedIn or Indeed job posting URL</span>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="companyName">
+                                        <i class="fas fa-building"></i> Company Name
+                                    </label>
+                                    <input type="text" id="companyName" placeholder="Optional - auto-detected">
+                                </div>
+                                <div class="form-group">
+                                    <label for="recipientName">
+                                        <i class="fas fa-user"></i> Recipient Name
+                                    </label>
+                                    <input type="text" id="recipientName" placeholder="Optional">
+                                </div>
+                            </div>
+
+                            <div class="divider">
+                                <span>Sender Information</span>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="senderName">
+                                        <i class="fas fa-user-tie"></i> Your Name *
+                                    </label>
+                                    <input type="text" id="senderName" placeholder="Alex" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="senderCompany">
+                                        <i class="fas fa-briefcase"></i> Your Company *
+                                    </label>
+                                    <input type="text" id="senderCompany" placeholder="TechSolutions" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="senderServices">
+                                    <i class="fas fa-cogs"></i> Services Offered *
+                                </label>
+                                <input type="text" id="senderServices" placeholder="software development, web apps, AI solutions" required>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="role">
+                                        <i class="fas fa-briefcase"></i> Role (if no URL)
+                                    </label>
+                                    <input type="text" id="role" placeholder="e.g., Senior DevOps Engineer">
+                                </div>
+                                <div class="form-group">
+                                    <label for="industry">
+                                        <i class="fas fa-industry"></i> Industry (if no URL)
+                                    </label>
+                                    <input type="text" id="industry" placeholder="e.g., FinTech, SaaS">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="tone">
+                                    <i class="fas fa-comment"></i> Tone
+                                </label>
+                                <select id="tone">
+                                    <option value="professional">Professional</option>
+                                    <option value="casual">Casual</option>
+                                    <option value="friendly">Friendly</option>
+                                    <option value="formal">Formal</option>
+                                </select>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-block" id="generateBtn">
+                                <i class="fas fa-magic"></i>
+                                <span>Generate Email</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Output Card -->
+                    <div class="card output-card">
+                        <div class="card-header">
+                            <i class="fas fa-envelope"></i>
+                            <h2>Generated Email</h2>
+                            <div class="score-badge" id="scoreBadge" style="display: none;">
+                                <span id="scoreValue">0.0</span>/10
+                            </div>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div id="loadingState" class="loading-state" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>AI agents working...</p>
+                            <div class="loading-steps">
+                                <div class="step" id="step1"><i class="fas fa-search"></i> Scraping job data</div>
+                                <div class="step" id="step2"><i class="fas fa-user-check"></i> Analyzing persona</div>
+                                <div class="step" id="step3"><i class="fas fa-folder-open"></i> Matching portfolio</div>
+                                <div class="step" id="step4"><i class="fas fa-pen"></i> Generating email</div>
+                                <div class="step" id="step5"><i class="fas fa-check-double"></i> Evaluating quality</div>
+                            </div>
+                        </div>
+
+                        <!-- Empty State -->
+                        <div id="emptyState" class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>Fill in the form and click Generate to create your cold email</p>
+                        </div>
+
+                        <!-- Result State -->
+                        <div id="resultState" class="result-state" style="display: none;">
+                            <div class="email-preview">
+                                <div class="email-subject">
+                                    <label>Subject:</label>
+                                    <p id="emailSubject"></p>
+                                </div>
+                                <div class="email-body">
+                                    <label>Body:</label>
+                                    <div id="emailBody"></div>
+                                </div>
+                                <div class="email-cta">
+                                    <label>CTA:</label>
+                                    <p id="emailCta"></p>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="action-buttons">
+                                <button class="btn btn-secondary" onclick="copyEmail()">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                                <button class="btn btn-secondary" onclick="downloadTxt()">
+                                    <i class="fas fa-file-alt"></i> Save TXT
+                                </button>
+                                <button class="btn btn-secondary" onclick="downloadEml()">
+                                    <i class="fas fa-download"></i> Download .eml
+                                </button>
+                                <button class="btn btn-secondary" onclick="exportJson()">
+                                    <i class="fas fa-file-export"></i> Export JSON
+                                </button>
+                            </div>
+
+                            <!-- Metrics -->
+                            <div class="metrics-grid" id="metricsGrid">
+                                <div class="metric">
+                                    <span class="metric-label">Clarity</span>
+                                    <div class="metric-bar"><div class="metric-fill" id="clarityBar"></div></div>
+                                    <span class="metric-value" id="clarityScore">0</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Tone</span>
+                                    <div class="metric-bar"><div class="metric-fill" id="toneBar"></div></div>
+                                    <span class="metric-value" id="toneScore">0</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Length</span>
+                                    <div class="metric-bar"><div class="metric-fill" id="lengthBar"></div></div>
+                                    <span class="metric-value" id="lengthScore">0</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Personal</span>
+                                    <div class="metric-bar"><div class="metric-fill" id="personalBar"></div></div>
+                                    <span class="metric-value" id="personalScore">0</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Spam Safe</span>
+                                    <div class="metric-bar"><div class="metric-fill" id="spamBar"></div></div>
+                                    <span class="metric-value" id="spamScore">0</span>
+                                </div>
+                            </div>
+
+                            <!-- Strengths & Issues -->
+                            <div class="feedback-section">
+                                <div class="strengths" id="strengthsSection">
+                                    <h4><i class="fas fa-check-circle"></i> Strengths</h4>
+                                    <ul id="strengthsList"></ul>
+                                </div>
+                                <div class="issues" id="issuesSection">
+                                    <h4><i class="fas fa-exclamation-circle"></i> Areas to Improve</h4>
+                                    <ul id="issuesList"></ul>
+                                </div>
+                            </div>
+
+                            <!-- Alternative Subjects -->
+                            <div class="alt-subjects" id="altSubjectsSection">
+                                <h4><i class="fas fa-lightbulb"></i> Alternative Subject Lines</h4>
+                                <ul id="altSubjectsList"></ul>
+                            </div>
+
+                            <!-- Portfolio Items Used -->
+                            <div class="portfolio-section" id="portfolioSection" style="display: none;">
+                                <h4><i class="fas fa-briefcase"></i> Portfolio Items Included</h4>
+                                <div id="portfolioList" class="portfolio-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Batch Tab -->
+        <section id="batch" class="tab-content">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Batch Processing</h1>
+                    <p>Generate multiple cold emails from a CSV file</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-file-csv"></i>
+                        <h2>Upload CSV</h2>
+                    </div>
+
+                    <div class="upload-zone" id="uploadZone">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drag & drop your CSV file here</p>
+                        <span>or</span>
+                        <label class="btn btn-secondary">
+                            <i class="fas fa-folder-open"></i> Browse Files
+                            <input type="file" id="csvFile" accept=".csv" hidden>
+                        </label>
+                        <p class="hint">Required: job_url, company_name | Optional: recipient_name, sender_name, sender_company, sender_services</p>
+                    </div>
+
+                    <div id="csvPreview" class="csv-preview" style="display: none;">
+                        <h4>Preview (<span id="rowCount">0</span> rows)</h4>
+                        <div class="table-wrapper">
+                            <table id="previewTable"></table>
+                        </div>
+                        <div class="batch-actions">
+                            <button class="btn btn-primary" id="startBatchBtn">
+                                <i class="fas fa-play"></i> Start Batch Processing
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearCsv()">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Batch Progress -->
+                    <div id="batchProgress" class="batch-progress" style="display: none;">
+                        <div class="progress-header">
+                            <h4>Processing...</h4>
+                            <span id="progressCount">0/0</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="progressBar"></div>
+                        </div>
+                        <div id="batchLog" class="batch-log"></div>
+                    </div>
+
+                    <!-- Batch Results -->
+                    <div id="batchResults" class="batch-results" style="display: none;">
+                        <div class="results-header">
+                            <h4><i class="fas fa-check-circle"></i> Batch Complete</h4>
+                        </div>
+                        
+                        <!-- Stats Cards -->
+                        <div class="batch-stats">
+                            <div class="stat-card">
+                                <div class="stat-value" id="totalCount">0</div>
+                                <div class="stat-label">Total</div>
+                            </div>
+                            <div class="stat-card success">
+                                <div class="stat-value" id="successCount">0</div>
+                                <div class="stat-label">Successful</div>
+                            </div>
+                            <div class="stat-card failed">
+                                <div class="stat-value" id="failedCount">0</div>
+                                <div class="stat-label">Failed</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="avgScore">0.0</div>
+                                <div class="stat-label">Avg Score</div>
+                            </div>
+                        </div>
+
+                        <!-- Errors Section (if any) -->
+                        <div id="batchErrors" class="batch-errors" style="display: none;">
+                            <button class="error-toggle" onclick="toggleBatchErrors()">
+                                <i class="fas fa-exclamation-triangle"></i> View Errors (<span id="errorCount">0</span>)
+                            </button>
+                            <div id="errorList" class="error-list" style="display: none;"></div>
+                        </div>
+
+                        <!-- Results Table -->
+                        <div class="results-table-section">
+                            <h4><i class="fas fa-table"></i> Generated Emails</h4>
+                            <div class="table-wrapper">
+                                <table id="resultsTable" class="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Company</th>
+                                            <th>Subject Line</th>
+                                            <th>Score</th>
+                                            <th>Metrics (C/T/P/L/S)</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="resultsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Export Button -->
+                        <div class="batch-export-buttons">
+                            <button class="btn btn-primary" onclick="downloadBatchResultsExcel()">
+                                <i class="fas fa-file-excel"></i> Download Results (Excel)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Download Template -->
+                <div class="card template-card">
+                    <div class="card-header">
+                        <i class="fas fa-file-download"></i>
+                        <h2>Need a Template?</h2>
+                    </div>
+                    <p>Download our CSV template to get started quickly</p>
+                    <button class="btn btn-secondary" onclick="downloadTemplate()">
+                        <i class="fas fa-download"></i> Download Template
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- History Tab -->
+        <section id="history" class="tab-content">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Email History</h1>
+                    <p>View all previously generated emails</p>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" onclick="loadHistory()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                        <button class="btn btn-primary" onclick="exportHistoryCSV()">
+                            <i class="fas fa-file-csv"></i> Export CSV
+                        </button>
+                        <button class="btn btn-primary" onclick="exportHistoryExcel()">
+                            <i class="fas fa-file-excel"></i> Export Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div class="history-filters">
+                    <input type="text" id="historySearch" placeholder="Search by company, role..." onkeyup="filterHistory()">
+                    <select id="historySort" onchange="sortHistory()">
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="score-high">Highest Score</option>
+                        <option value="score-low">Lowest Score</option>
+                    </select>
+                </div>
+
+                <div id="historyList" class="history-list">
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No emails generated yet</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Analytics Tab -->
+        <section id="analytics" class="tab-content">
+            <div class="container">
+                <div class="page-header">
+                    <h1>Analytics Dashboard</h1>
+                    <p>Insights from your email generation</p>
+                    <button class="btn btn-secondary" onclick="exportAnalytics()">
+                        <i class="fas fa-download"></i> Export Analytics
+                    </button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-envelope"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="totalEmails">0</span>
+                            <span class="stat-label">Total Emails</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-star"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="avgScore">0.0</span>
+                            <span class="stat-label">Avg Score</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-building"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="uniqueCompanies">0</span>
+                            <span class="stat-label">Companies</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-trophy"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="highScoreCount">0</span>
+                            <span class="stat-label">Score 8+</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-chart-pie"></i>
+                            <h2>Emails by Role</h2>
+                        </div>
+                        <div id="roleChart" class="chart-container">
+                            <div class="role-bars" id="roleBars"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-chart-line"></i>
+                            <h2>Score Distribution</h2>
+                        </div>
+                        <div id="scoreChart" class="chart-container">
+                            <div class="score-distribution" id="scoreDistribution"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-clock"></i>
+                        <h2>Recent Activity</h2>
+                    </div>
+                    <div id="recentActivity" class="recent-activity"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-award"></i>
+                        <h2>Template Performance</h2>
+                    </div>
+                    <div class="card-description">Average quality score for emails using each template</div>
+                    <div id="templatePerformance" class="template-performance">
+                        <div class="empty-state">
+                            <i class="fas fa-chart-bar"></i>
+                            <p>No template usage data yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toastMessage">Success!</span>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Built with <i class="fas fa-heart"></i> using Multi-Agent AI System</p>
+        <p class="tech-stack">FastAPI • LangChain • Groq LLM • ChromaDB • RAG</p>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

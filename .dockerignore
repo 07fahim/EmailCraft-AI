@@ -1,0 +1,49 @@
+# Docker ignore file
+# Prevents unnecessary files from being copied to the image
+
+# Git
+.git
+.gitignore
+.github
+
+# Python cache
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environment
+venv
+env
+.venv
+.env.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Local databases (will be recreated)
+*.db
+analytics.db
+
+# Development files
+*.md
+!README.md
+
+# Batch files (Windows only)
+*.bat
+
+# Streamlit (not needed in production)
+.streamlit
+
+# Temporary files
+tmp/
+temp/
+*.tmp
