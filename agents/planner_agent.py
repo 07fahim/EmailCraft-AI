@@ -4,6 +4,7 @@ Orchestrates the multi-agent pipeline for email generation.
 OPTIMIZED: Faster execution, better error handling, execution tracking.
 """
 
+import os
 import logging
 import time
 from typing import Dict, Any, Optional
@@ -16,11 +17,22 @@ from models.schemas import (
     PortfolioItem
 )
 from agents.persona_agent import PersonaAnalyzerAgent
-from agents.retrieval_agent import TemplateRetrievalAgent
-from agents.portfolio_agent import PortfolioRetrievalAgent
 from agents.generation_agent import EmailGenerationAgent
 from agents.evaluation_agent import EvaluationAgent
 from agents.scraper_agent import JobScrapingAgent
+
+# Use LITE mode for memory-constrained environments (free tier hosting)
+# Set LITE_MODE=true in environment to use lightweight keyword matching
+USE_LITE_MODE = os.environ.get("LITE_MODE", "true").lower() == "true"
+
+if USE_LITE_MODE:
+    from agents.retrieval_agent_lite import TemplateRetrievalAgent
+    from agents.portfolio_agent_lite import PortfolioRetrievalAgent
+    logging.info("🪶 Using LITE mode (keyword matching) - memory efficient")
+else:
+    from agents.retrieval_agent import TemplateRetrievalAgent
+    from agents.portfolio_agent import PortfolioRetrievalAgent
+    logging.info("🔧 Using FULL mode (ChromaDB embeddings)")
 
 # Import database manager
 from database.db_manager import get_db

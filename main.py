@@ -44,7 +44,12 @@ class SafeJSONResponse(JSONResponse):
             separators=(",", ":")
         ).encode("utf-8")
 
-# Disable ChromaDB telemetry
+# LITE MODE: Use keyword matching instead of ChromaDB embeddings
+# This dramatically reduces memory usage for free tier hosting (512MB limit)
+# Set LITE_MODE=false to use full ChromaDB with ONNX embeddings (requires more RAM)
+os.environ.setdefault("LITE_MODE", "true")
+
+# Disable ChromaDB telemetry (only used if LITE_MODE=false)
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
 # Configure logging
@@ -53,6 +58,10 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Log the mode being used
+lite_mode = os.environ.get("LITE_MODE", "true").lower() == "true"
+logger.info(f"🔧 Running in {'LITE' if lite_mode else 'FULL'} mode")
 
 app = FastAPI(
     title="EmailCraft AI API",
