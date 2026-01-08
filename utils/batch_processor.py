@@ -8,6 +8,7 @@ import logging
 import math
 import json
 import re
+import time
 from typing import Dict, Any, Tuple
 from io import StringIO
 import requests
@@ -129,12 +130,52 @@ class BatchEmailProcessor:
                     'tone': 'professional'
                 }
                 
-                # Call API
-                response = requests.post(
-                    f"{self.api_url}/generate-email",
-                    json=payload,
-                    timeout=120
-                )
+                # Call API with retry logic
+                max_retries = 3
+                response = None
+                last_error = None
+                
+                for attempt in range(max_retries):
+                    try:
+                        response = requests.post(
+                            f"{self.api_url}/generate-email",
+                            json=payload,
+                            timeout=180  # Increased timeout for production
+                        )
+                        if response.status_code in [502, 503, 504, 429]:
+                            # Retry on server errors or rate limits
+                            wait_time = 3 * (attempt + 1)  # 3, 6, 9 seconds
+                            logger.warning(f"Row {idx + 1}: HTTP {response.status_code}, retrying in {wait_time}s...")
+                            time.sleep(wait_time)
+                            continue
+                        break  # Success or non-retryable error
+                    except requests.exceptions.Timeout:
+                        last_error = "Request timeout"
+                        wait_time = 5 * (attempt + 1)
+                        logger.warning(f"Row {idx + 1}: Timeout, retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                    except requests.exceptions.RequestException as e:
+                        last_error = str(e)
+                        break  # Don't retry on connection errors
+                
+                # Handle case where all retries failed
+                if response is None:
+                    results.append({
+                        'row_number': idx + 1,
+                        'company_name': str(row.get('company_name', 'Unknown')),
+                        'recipient_name': str(row.get('recipient_name', '')),
+                        'job_url': str(row.get('job_url', '')),
+                        'subject_line': '',
+                        'email_body': '',
+                        'cta': '',
+                        'quality_score': 0,
+                        'status': f'Failed: {last_error or "Connection error"}'
+                    })
+                    stats['failed'] += 1
+                    stats['errors'].append(f"Row {idx + 1}: {last_error or 'Connection error'}")
+                    # Add delay before next request to avoid overload
+                    time.sleep(2)
+                    continue
                 
                 if response.status_code == 200:
                     # Parse response safely
@@ -174,6 +215,9 @@ class BatchEmailProcessor:
                     stats['successful'] += 1
                     total_score += score
                     
+                    # Add delay between successful requests to avoid rate limits
+                    time.sleep(1.5)
+                    
                 else:
                     # API error - also parse safely
                     try:
@@ -196,6 +240,9 @@ class BatchEmailProcessor:
                     stats['failed'] += 1
                     stats['errors'].append(f"Row {idx + 1}: {error_msg}")
                     
+                    # Add delay before next request after failure
+                    time.sleep(2)
+                    
             except Exception as e:
                 logger.error(f"Error processing row {idx + 1}: {e}")
                 results.append({
@@ -211,6 +258,9 @@ class BatchEmailProcessor:
                 })
                 stats['failed'] += 1
                 stats['errors'].append(f"Row {idx + 1}: {str(e)}")
+                
+                # Add delay before next request after exception
+                time.sleep(2)
         
         # Calculate average score safely
         if stats['successful'] > 0:

@@ -142,18 +142,31 @@ class PineconeCollection:
         logger.info(f"✅ Pinecone index '{self.index_name}' initialized with {self.EMBEDDING_MODEL} embeddings")
     
     def _get_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """Get embeddings using Pinecone's inference API."""
-        try:
-            # Use Pinecone's inference API
-            embeddings_response = self.pc.inference.embed(
-                model=self.EMBEDDING_MODEL,
-                inputs=texts,
-                parameters={"input_type": "passage"}
-            )
-            return [e.values for e in embeddings_response.data]
-        except Exception as e:
-            logger.warning(f"Pinecone inference failed: {e}, using fallback")
-            return self._fallback_embeddings(texts)
+        """Get embeddings using Pinecone's inference API with retry logic."""
+        import time
+        
+        max_retries = 3
+        retry_delay = 1.0
+        
+        for attempt in range(max_retries):
+            try:
+                # Use Pinecone's inference API
+                embeddings_response = self.pc.inference.embed(
+                    model=self.EMBEDDING_MODEL,
+                    inputs=texts,
+                    parameters={"input_type": "passage"}
+                )
+                return [e.values for e in embeddings_response.data]
+            except Exception as e:
+                error_msg = str(e).lower()
+                # Check if it's a rate limit or timeout error
+                if attempt < max_retries - 1 and ('rate' in error_msg or 'limit' in error_msg or 'timeout' in error_msg or '429' in error_msg or '503' in error_msg):
+                    wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                    logger.warning(f"Pinecone API error (attempt {attempt + 1}): {e}, retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                else:
+                    logger.warning(f"Pinecone inference failed after {attempt + 1} attempts: {e}, using fallback")
+                    return self._fallback_embeddings(texts)
     
     def _fallback_embeddings(self, texts: List[str]) -> List[List[float]]:
         """Fallback: simple keyword-based pseudo-embeddings."""

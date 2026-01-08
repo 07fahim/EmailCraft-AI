@@ -1081,13 +1081,13 @@ function sortHistory() {
     historyData.sort((a, b) => {
         switch (sort) {
             case 'newest':
-                return new Date(b.created_at) - new Date(a.created_at);
+                return new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp);
             case 'oldest':
-                return new Date(a.created_at) - new Date(b.created_at);
+                return new Date(a.created_at || a.timestamp) - new Date(b.created_at || b.timestamp);
             case 'score-high':
-                return (b.quality_score || 0) - (a.quality_score || 0);
+                return (b.final_score || 0) - (a.final_score || 0);
             case 'score-low':
-                return (a.quality_score || 0) - (b.quality_score || 0);
+                return (a.final_score || 0) - (b.final_score || 0);
             default:
                 return 0;
         }
