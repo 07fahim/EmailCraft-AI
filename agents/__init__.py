@@ -19,10 +19,7 @@ if USE_LITE_MODE:
 else:
     from agents.retrieval_agent import TemplateRetrievalAgent
     from agents.portfolio_agent import PortfolioRetrievalAgent
-    "TemplateRetrievalAgent",
-    "EmailGenerationAgent",
-    "EvaluationAgent",
-    "PortfolioRetrievalAgent",
-    "JobScrapingAgent"
-]
 
+__all__ = [
+    "PlannerAgent",
+    "PersonaAnalyzerAgent",
