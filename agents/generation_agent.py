@@ -80,12 +80,15 @@ Return JSON with subject_line, body, and cta."""
         Returns:
             EmailDraft with subject, body, and CTA
         """
-        # Format portfolio links (MANDATORY in Codebasics style)
+        # Format portfolio links - JUST THE LINKS for clean email inclusion
         portfolio_text = ""
         if input_data.portfolio_items:
-            portfolio_text = "Portfolio Projects:\n"
-            for i, item in enumerate(input_data.portfolio_items, 1):
-                portfolio_text += f"{i}. {item.title}: {item.outcomes} - {item.link}\n"
+            # List links clearly so LLM includes ALL of them
+            links = [item.link for item in input_data.portfolio_items[:3]]  # Max 3 links
+            portfolio_text = f"INCLUDE ALL {len(links)} LINKS BELOW IN THE EMAIL:\n"
+            for i, link in enumerate(links, 1):
+                portfolio_text += f"  Link {i}: {link}\n"
+            portfolio_text += "\nIMPORTANT: Include ALL links above in the email body, one per line."
         else:
             portfolio_text = "No portfolio items available - focus on product value."
         

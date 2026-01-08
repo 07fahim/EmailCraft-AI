@@ -178,68 +178,100 @@ class PortfolioRetrievalAgent:
                 if tech_responsibilities:
                     query_parts.append(" ".join(tech_responsibilities[:2]))
             
-            # FALLBACK: If no skills found, infer from role keywords
-            if not filter_keywords and scraped_job_data.role:
+            # ALWAYS check role-based skill inference (scraped skills may be wrong)
+            if scraped_job_data.role:
                 role_lower = scraped_job_data.role.lower()
                 
-                # Generic role-to-skills mapping for various industries
-                role_skill_map = {
-                    # Tech roles
-                    'software': ['python', 'java', 'javascript', 'react', 'node.js', 'sql'],
-                    'full stack': ['react', 'node.js', 'mongodb', 'javascript', 'typescript'],
-                    'frontend': ['react', 'angular', 'vue', 'javascript', 'typescript', 'css'],
-                    'backend': ['python', 'java', 'node.js', 'postgresql', 'mongodb', 'api'],
-                    'data scientist': ['python', 'machine learning', 'tensorflow', 'pandas', 'sql'],
-                    'data engineer': ['python', 'sql', 'spark', 'airflow', 'aws', 'etl'],
-                    'data analyst': ['sql', 'excel', 'python', 'tableau', 'power bi'],
-                    'machine learning': ['python', 'tensorflow', 'pytorch', 'machine learning'],
-                    'devops': ['docker', 'kubernetes', 'jenkins', 'aws', 'terraform', 'ci/cd'],
-                    'mobile': ['react native', 'flutter', 'ios', 'android', 'swift', 'kotlin'],
-                    'cloud': ['aws', 'azure', 'gcp', 'kubernetes', 'docker', 'terraform'],
-                    # Marketing roles
-                    'marketing': ['seo', 'google analytics', 'hubspot', 'content', 'social media'],
-                    'digital marketing': ['seo', 'ppc', 'google ads', 'facebook ads', 'analytics'],
-                    'content': ['content writing', 'copywriting', 'seo', 'cms', 'wordpress'],
-                    'social media': ['social media', 'instagram', 'tiktok', 'content creation'],
-                    # Sales roles
-                    'sales': ['salesforce', 'crm', 'lead generation', 'b2b', 'negotiation'],
-                    'account': ['salesforce', 'account management', 'crm', 'client relations'],
-                    'business development': ['lead generation', 'crm', 'sales', 'partnerships'],
-                    # Finance roles
-                    'finance': ['excel', 'financial modeling', 'accounting', 'quickbooks', 'sap'],
-                    'accountant': ['quickbooks', 'excel', 'gaap', 'tax', 'bookkeeping'],
-                    'analyst': ['excel', 'sql', 'financial analysis', 'modeling', 'reporting'],
-                    # HR roles
-                    'hr': ['workday', 'recruiting', 'ats', 'employee relations', 'hris'],
-                    'recruiter': ['linkedin', 'ats', 'sourcing', 'interviewing', 'hiring'],
-                    'talent': ['recruiting', 'talent acquisition', 'ats', 'sourcing'],
-                    # Design roles
-                    'designer': ['figma', 'adobe', 'sketch', 'ui/ux', 'photoshop'],
-                    'ux': ['figma', 'user research', 'wireframing', 'prototyping', 'usability'],
-                    'graphic': ['photoshop', 'illustrator', 'indesign', 'branding', 'design'],
-                    # Operations roles
-                    'operations': ['project management', 'process improvement', 'erp', 'logistics'],
-                    'project manager': ['project management', 'agile', 'scrum', 'jira', 'pmp'],
-                    'product': ['product management', 'agile', 'roadmap', 'user stories', 'jira'],
-                    'supply chain': ['supply chain', 'logistics', 'inventory', 'erp', 'procurement'],
-                    # Healthcare roles
-                    'nurse': ['patient care', 'emr', 'clinical', 'nursing', 'healthcare'],
-                    'healthcare': ['emr', 'hipaa', 'patient care', 'clinical', 'medical'],
-                    'medical': ['medical coding', 'emr', 'healthcare', 'clinical', 'patient'],
-                    # Education roles
-                    'teacher': ['curriculum', 'instruction', 'classroom', 'education', 'teaching'],
-                    'instructor': ['training', 'curriculum', 'lms', 'e-learning', 'instruction'],
-                    # Customer service
-                    'customer': ['customer service', 'crm', 'zendesk', 'support', 'communication'],
-                    'support': ['customer support', 'ticketing', 'zendesk', 'troubleshooting'],
+                # Known tech skills that indicate real extraction worked
+                REAL_TECH_SKILLS = {
+                    'python', 'java', 'javascript', 'react', 'node', 'angular', 'vue',
+                    'typescript', 'sql', 'mongodb', 'postgresql', 'mysql', 'docker',
+                    'kubernetes', 'aws', 'azure', 'gcp', 'spring', 'django', 'flask',
+                    'tensorflow', 'pytorch', 'c++', 'c#', 'ruby', 'go', 'rust', 'php',
+                    'html', 'css', 'graphql', 'redis', 'elasticsearch', 'kafka',
+                    'git', 'linux', 'jenkins', 'terraform', 'ansible', 'ci/cd',
+                    'figma', 'photoshop', 'salesforce', 'hubspot', 'excel', 'tableau',
+                    'power bi', 'sap', 'oracle', 'workday', 'jira', 'confluence'
                 }
                 
-                for role_key, skills in role_skill_map.items():
-                    if role_key in role_lower:
-                        filter_keywords.update(skills[:4])
-                        query_parts.append(" ".join(skills[:4]))
-                        logger.info(f"📌 Inferred skills from role '{scraped_job_data.role}': {skills[:4]}")
-                        break
+                # Check if we have any REAL tech skills in filter_keywords
+                has_real_skills = any(kw in REAL_TECH_SKILLS for kw in filter_keywords)
+                
+                # If no real skills extracted, use role-based inference
+                if not has_real_skills:
+                    logger.info(f"⚠️ No real tech skills found in: {list(filter_keywords)[:5]}. Using role-based inference.")
+                    # Clear bad keywords
+                    filter_keywords.clear()
+                    
+                    # Generic role-to-skills mapping for various industries
+                    role_skill_map = {
+                        # Tech roles
+                        'software': ['python', 'java', 'javascript', 'react', 'node.js', 'sql', 'backend', 'frontend'],
+                        'engineer': ['python', 'java', 'javascript', 'sql', 'docker', 'aws'],
+                        'developer': ['python', 'java', 'javascript', 'react', 'node.js', 'sql'],
+                        'full stack': ['react', 'node.js', 'mongodb', 'javascript', 'typescript'],
+                        'frontend': ['react', 'angular', 'vue', 'javascript', 'typescript', 'css'],
+                        'backend': ['python', 'java', 'node.js', 'postgresql', 'mongodb', 'api'],
+                        'data scientist': ['python', 'machine learning', 'tensorflow', 'pandas', 'sql'],
+                        'data engineer': ['python', 'sql', 'spark', 'airflow', 'aws', 'etl'],
+                        'data analyst': ['sql', 'excel', 'python', 'tableau', 'power bi'],
+                        'machine learning': ['python', 'tensorflow', 'pytorch', 'machine learning'],
+                        'devops': ['docker', 'kubernetes', 'jenkins', 'aws', 'terraform', 'ci/cd'],
+                        'mobile': ['react native', 'flutter', 'ios', 'android', 'swift', 'kotlin'],
+                        'cloud': ['aws', 'azure', 'gcp', 'kubernetes', 'docker', 'terraform'],
+                        # Marketing roles
+                        'marketing': ['seo', 'google analytics', 'hubspot', 'content', 'social media'],
+                        'digital marketing': ['seo', 'ppc', 'google ads', 'facebook ads', 'analytics'],
+                        'content': ['content writing', 'copywriting', 'seo', 'cms', 'wordpress'],
+                        'social media': ['social media', 'instagram', 'tiktok', 'content creation'],
+                        # Sales roles
+                        'sales': ['salesforce', 'crm', 'lead generation', 'b2b', 'negotiation'],
+                        'account': ['salesforce', 'account management', 'crm', 'client relations'],
+                        'business development': ['lead generation', 'crm', 'sales', 'partnerships'],
+                        # Finance roles
+                        'finance': ['excel', 'financial modeling', 'accounting', 'quickbooks', 'sap'],
+                        'accountant': ['quickbooks', 'excel', 'gaap', 'tax', 'bookkeeping'],
+                        'analyst': ['excel', 'sql', 'financial analysis', 'modeling', 'reporting'],
+                        # HR roles
+                        'hr': ['workday', 'recruiting', 'ats', 'employee relations', 'hris'],
+                        'recruiter': ['linkedin', 'ats', 'sourcing', 'interviewing', 'hiring'],
+                        'talent': ['recruiting', 'talent acquisition', 'ats', 'sourcing'],
+                        # Design roles
+                        'designer': ['figma', 'adobe', 'sketch', 'ui/ux', 'photoshop'],
+                        'ux': ['figma', 'user research', 'wireframing', 'prototyping', 'usability'],
+                        'graphic': ['photoshop', 'illustrator', 'indesign', 'branding', 'design'],
+                        # Operations roles
+                        'operations': ['project management', 'process improvement', 'erp', 'logistics'],
+                        'project manager': ['project management', 'agile', 'scrum', 'jira', 'pmp'],
+                        'product': ['product management', 'agile', 'roadmap', 'user stories', 'jira'],
+                        'supply chain': ['supply chain', 'logistics', 'inventory', 'erp', 'procurement'],
+                        # Healthcare roles
+                        'nurse': ['patient care', 'emr', 'clinical', 'nursing', 'healthcare'],
+                        'healthcare': ['emr', 'hipaa', 'patient care', 'clinical', 'medical'],
+                        'medical': ['medical coding', 'emr', 'healthcare', 'clinical', 'patient'],
+                        # Education roles
+                        'teacher': ['curriculum', 'instruction', 'classroom', 'education', 'teaching'],
+                        'instructor': ['training', 'curriculum', 'lms', 'e-learning', 'instruction'],
+                        # Customer service
+                        'customer': ['customer service', 'crm', 'zendesk', 'support', 'communication'],
+                        'support': ['customer support', 'ticketing', 'zendesk', 'troubleshooting'],
+                    }
+                    
+                    matched_role = False
+                    for role_key, skills in role_skill_map.items():
+                        if role_key in role_lower:
+                            filter_keywords.update(skills[:5])
+                            query_parts.append(" ".join(skills[:5]))
+                            logger.info(f"📌 Inferred skills from role '{scraped_job_data.role}': {skills[:5]}")
+                            matched_role = True
+                            break
+                    
+                    # If no specific role matched, default to general software skills
+                    if not matched_role and ('software' in role_lower or 'engineer' in role_lower or 'developer' in role_lower):
+                        default_skills = ['python', 'java', 'javascript', 'react', 'sql', 'node.js']
+                        filter_keywords.update(default_skills)
+                        query_parts.append(" ".join(default_skills))
+                        logger.info(f"📌 Using default software skills for '{scraped_job_data.role}'")
 
         if persona:
             if persona.pain_points:

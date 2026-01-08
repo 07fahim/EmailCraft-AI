@@ -64,17 +64,28 @@ B2B COLD EMAIL BEST PRACTICES (FOLLOW STRICTLY)
    - Be specific to their role/tech stack
    - Use "you/your" more than "we/us"
 
-5. PROOF (1-2 sentences only):
-   - Include UP TO 3 relevant portfolio links (maximum 3)
-   - NO descriptions of the projects - just the links
-   - Use intro phrase like: "Here's a recent project that showcases our capabilities:"
-   - Example:
-     "Here's a recent project that showcases our capabilities:
-     https://github.com/user/project1
-     https://github.com/user/project2"
-   - Alternative intros: "Here's some relevant work:" or "Check out our recent projects:"
-   - WRONG: "We built a Machine Learning project with Python and TensorFlow (https://...)"
-   - Keep it minimal - links speak for themselves
+5. PROOF - PORTFOLIO LINKS (CRITICAL):
+   - You MUST include ALL portfolio links provided above
+   - List each link on its own line for readability
+   - Use a professional intro, then list ALL links
+   
+   CORRECT FORMAT:
+     "Here's some of our relevant work:
+     
+     • https://github.com/user/project1
+     • https://github.com/user/project2
+     • https://github.com/user/project3"
+   
+   ALTERNATIVE FORMAT:
+     "Check out our recent projects:
+     https://example.com/ml-project
+     https://example.com/devops-project
+     https://example.com/python-project"
+   
+   WRONG (don't describe projects):
+     "We built a Machine Learning project (https://...)"
+   
+   REMEMBER: Include EVERY link from the PORTFOLIO section above!
 
 6. CTA - Call to Action (1 sentence):
    - Ask for something SMALL with SPECIFIC time commitment
