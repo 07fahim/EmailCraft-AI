@@ -14,6 +14,8 @@ langchain-core>=0.1.0
 
 # Vector Store & Embeddings
 chromadb==0.4.18
+pinecone-client>=3.0.0
+sentence-transformers==2.2.2
 
 # Web Scraping (for job postings)
 beautifulsoup4==4.12.2

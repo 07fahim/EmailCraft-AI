@@ -44,12 +44,14 @@ class SafeJSONResponse(JSONResponse):
             separators=(",", ":")
         ).encode("utf-8")
 
-# LITE MODE: Use keyword matching instead of ChromaDB embeddings
-# This dramatically reduces memory usage for free tier hosting (512MB limit)
-# Set LITE_MODE=false to use full ChromaDB with ONNX embeddings (requires more RAM)
-os.environ.setdefault("LITE_MODE", "true")
+# VECTOR_MODE: Controls which vector search backend to use
+# Options:
+#   PINECONE - Best accuracy, cloud-based semantic search (requires PINECONE_API_KEY)
+#   LITE - Keyword matching, no dependencies, works anywhere (default)
+#   FULL - ChromaDB with ONNX embeddings (high memory, not for free tier)
+os.environ.setdefault("VECTOR_MODE", "PINECONE" if os.environ.get("PINECONE_API_KEY") else "LITE")
 
-# Disable ChromaDB telemetry (only used if LITE_MODE=false)
+# Disable ChromaDB telemetry (only used if VECTOR_MODE=FULL)
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
 # Configure logging
