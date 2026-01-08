@@ -3,6 +3,7 @@ Batch CSV Processing - Generate multiple emails from CSV file.
 Enables high-volume email generation for agencies and teams.
 """
 
+import os
 import pandas as pd
 import logging
 import math
@@ -14,6 +15,11 @@ from io import StringIO
 import requests
 
 logger = logging.getLogger(__name__)
+
+# Detect if running in production (Render sets this)
+IS_PRODUCTION = bool(os.getenv("RENDER") or os.getenv("PINECONE_API_KEY"))
+# Delay between emails: 30s in production (rate limits), 2s locally
+BATCH_DELAY = 30 if IS_PRODUCTION else 2
 
 
 def safe_float(val, default=0.0) -> float:
@@ -215,9 +221,10 @@ class BatchEmailProcessor:
                     stats['successful'] += 1
                     total_score += score
                     
-                    # Add delay between successful requests to avoid Groq rate limits
-                    # Each email uses ~4-5 LLM calls, so need more spacing
-                    time.sleep(5)
+                    # Delay between emails: 30s in production (rate limits), 2s locally
+                    if idx < len(df) - 1:  # Don't delay after last email
+                        logger.info(f"⏳ Waiting {BATCH_DELAY}s before next email...")
+                        time.sleep(BATCH_DELAY)
                     
                 else:
                     # API error - also parse safely
@@ -241,8 +248,9 @@ class BatchEmailProcessor:
                     stats['failed'] += 1
                     stats['errors'].append(f"Row {idx + 1}: {error_msg}")
                     
-                    # Add delay before next request after failure
-                    time.sleep(2)
+                    # Delay after failure: 30s in production, 2s locally
+                    logger.info(f"⏳ Waiting {BATCH_DELAY}s after failure...")
+                    time.sleep(BATCH_DELAY)
                     
             except Exception as e:
                 logger.error(f"Error processing row {idx + 1}: {e}")
@@ -260,8 +268,9 @@ class BatchEmailProcessor:
                 stats['failed'] += 1
                 stats['errors'].append(f"Row {idx + 1}: {str(e)}")
                 
-                # Add delay before next request after exception
-                time.sleep(2)
+                # Delay after error: 30s in production, 2s locally
+                logger.info(f"⏳ Waiting {BATCH_DELAY}s after error...")
+                time.sleep(BATCH_DELAY)
         
         # Calculate average score safely
         if stats['successful'] > 0:
