@@ -7,7 +7,8 @@ import json
 import re
 import logging
 import hashlib
-from typing import Optional, Dict
+import time
+from typing import Optional, Dict, Tuple
 from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
@@ -30,8 +31,9 @@ class JobScrapingAgent:
     - Output high-confidence evidence for persona analysis
     """
     
-    # OPTIMIZED: Class-level cache for scraped URLs
-    _url_cache: Dict[str, ScrapedJobData] = {}
+    # OPTIMIZED: Class-level cache for scraped URLs with TTL (24 hours)
+    _url_cache: Dict[str, Tuple[ScrapedJobData, float]] = {}  # {url_hash: (data, timestamp)}
+    CACHE_TTL = 86400  # 24 hours in seconds
     
     def __init__(self):
         """Initialize the agent with prompt template."""
@@ -169,7 +171,7 @@ Return ONLY valid JSON:
     def scrape(self, job_url: str) -> Optional[ScrapedJobData]:
         """
         Scrape job posting and extract structured data.
-        OPTIMIZED: Uses URL caching for repeated requests.
+        OPTIMIZED: Uses URL caching with TTL for repeated requests.
         
         Args:
             job_url: URL of the job posting
@@ -177,18 +179,27 @@ Return ONLY valid JSON:
         Returns:
             ScrapedJobData with extracted information, or None if scraping fails
         """
-        # CACHE DISABLED for fresh results every time
-        # To re-enable, uncomment the cache check below
-        # cache_key = hashlib.md5(job_url.encode()).hexdigest()
-        # if cache_key in JobScrapingAgent._url_cache:
-        #     logger.info(f"⚡ Using cached data for: {job_url[:50]}...")
-        #     return JobScrapingAgent._url_cache[cache_key]
+        # Check cache with TTL
+        cache_key = hashlib.md5(job_url.encode()).hexdigest()
+        if cache_key in JobScrapingAgent._url_cache:
+            cached_data, timestamp = JobScrapingAgent._url_cache[cache_key]
+            age = time.time() - timestamp
+            if age < self.CACHE_TTL:
+                logger.info(f"⚡ Using cached data (age: {int(age/3600)}h) for: {job_url[:50]}...")
+                return cached_data
+            else:
+                # Cache expired, remove it
+                logger.info(f"♻️ Cache expired, re-scraping: {job_url[:50]}...")
+                del JobScrapingAgent._url_cache[cache_key]
         
-        try:
-            logger.info(f"🔍 Scraping job posting: {job_url}")
-            
-            # OPTIMIZED: Shorter timeout for faster failures
-            response = requests.get(job_url, headers=self.headers, timeout=10)
+        # Retry logic for HTTP requests
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"🔍 Scraping job posting (attempt {attempt + 1}/{max_retries}): {job_url}")
+                
+                # Increased timeout to 20 seconds for slow sites
+                response = requests.get(job_url, headers=self.headers, timeout=20)
             response.raise_for_status()
             
             # Parse HTML
@@ -211,13 +222,18 @@ Return ONLY valid JSON:
             response_llm = self.llm.invoke(prompt)
             response_text = response_llm.content.strip()
             
-            # Parse JSON response
+            # Parse JSON response with robust extraction
             try:
-                # Extract JSON from response (handle markdown code blocks)
+                # Extract JSON from response (handle markdown code blocks and extra text)
                 if "```json" in response_text:
                     response_text = response_text.split("```json")[1].split("```")[0].strip()
                 elif "```" in response_text:
                     response_text = response_text.split("```")[1].split("```")[0].strip()
+                
+                # Find JSON object using regex (handles extra text before/after)
+                json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_text, re.DOTALL)
+                if json_match:
+                    response_text = json_match.group(0)
                 
                 # Clean control characters
                 response_text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', response_text)
@@ -237,8 +253,8 @@ Return ONLY valid JSON:
                 logger.info(f"✅ Successfully extracted: {scraped_data.role} at {scraped_data.company or 'Unknown Company'}")
                 logger.info(f"   Skills: {', '.join(scraped_data.skills[:5])}...")
                 
-                # CACHE DISABLED - uncomment to re-enable
-                # JobScrapingAgent._url_cache[cache_key] = scraped_data
+                # Save to cache with timestamp
+                JobScrapingAgent._url_cache[cache_key] = (scraped_data, time.time())
                 return scraped_data
                 
             except json.JSONDecodeError as e:
@@ -266,13 +282,22 @@ Return ONLY valid JSON:
                     company=None
                 )
         
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Error fetching job posting: {e}")
-            # Try URL-based fallback
-            return self._fallback_from_url(job_url)
-        except Exception as e:
-            logger.error(f"❌ Error processing job posting: {e}", exc_info=True)
-            return self._fallback_from_url(job_url)
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"⚠️ Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2)  # Wait 2 seconds before retry
+                    continue
+                logger.error(f"❌ All retry attempts failed for: {job_url}")
+                return self._fallback_from_url(job_url)
+            except Exception as e:
+                logger.error(f"❌ Error processing job posting: {e}", exc_info=True)
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+                    continue
+                return self._fallback_from_url(job_url)
+        
+        # Should not reach here, but fallback just in case
+        return self._fallback_from_url(job_url)
     
     def _fallback_from_url(self, job_url: str) -> Optional[ScrapedJobData]:
         """
