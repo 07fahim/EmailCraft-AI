@@ -609,7 +609,7 @@ async function startBatchProcessing() {
     document.getElementById('totalCount').textContent = csvData.length;
     document.getElementById('successCount').textContent = successCount;
     document.getElementById('failedCount').textContent = failedCount;
-    document.getElementById('avgScore').textContent = avgScore.toFixed(1);
+    document.getElementById('batchAvgScore').textContent = avgScore.toFixed(1);
     
     // Show errors if any
     if (errors.length > 0) {
@@ -1268,27 +1268,28 @@ function displayTemplatePerformance(templates) {
 // Export Functions
 // ============================================
 
+// Helper function to escape XML special characters (used by all export functions)
+function escapeXml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Helper function to parse JSON fields for export
+function parseJsonField(field) {
+    if (!field) return '';
+    try {
+        const parsed = typeof field === 'string' ? JSON.parse(field.replace(/'/g, '"')) : field;
+        return Array.isArray(parsed) ? parsed.join('; ') : parsed;
+    } catch {
+        return field;
+    }
+}
+
 function exportHistoryExcel() {
     if (!historyData || historyData.length === 0) {
         showToast('No data to export', 'error');
         return;
     }
-    
-    // Create XML-based Excel format (works without external libraries)
-    const escapeXml = (str) => {
-        if (!str) return '';
-        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    };
-    
-    const parseJsonField = (field) => {
-        if (!field) return '';
-        try {
-            const parsed = typeof field === 'string' ? JSON.parse(field.replace(/'/g, '"')) : field;
-            return Array.isArray(parsed) ? parsed.join('; ') : parsed;
-        } catch {
-            return field;
-        }
-    };
     
     let xml = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>';
     xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
@@ -1364,30 +1365,92 @@ async function exportAnalytics() {
         return;
     }
     
-    // Create CSV export
+    // Fetch template performance data
+    let templatePerformance = [];
+    try {
+        const response = await fetch(`${API_BASE}/template-performance`);
+        if (response.ok) {
+            templatePerformance = await response.json();
+        }
+    } catch (error) {
+        console.error('Failed to fetch template performance:', error);
+    }
+    
+    // Create simplified Excel XML export
     const timestamp = new Date().toISOString().split('T')[0];
-    let csv = `Cold Email AI - Analytics Summary\nExported: ${timestamp}\n\n`;
-    csv += `SUMMARY METRICS\n`;
-    csv += `Total Emails,${analyticsData.total_emails || 0}\n`;
-    csv += `Average Score,${(analyticsData.avg_score || 0).toFixed(1)}\n`;
-    csv += `Unique Companies,${analyticsData.unique_companies || 0}\n`;
-    csv += `High Score Count (8+),${analyticsData.high_score_count || 0}\n\n`;
     
-    csv += `ROLE DISTRIBUTION\n`;
-    csv += `Role,Count\n`;
+    let xml = '<?xml version="1.0"?>\n';
+    xml += '<?mso-application progid="Excel.Sheet"?>\n';
+    xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
+    
+    // Styles
+    xml += '<Styles>\n';
+    xml += '<Style ss:ID="Header">\n';
+    xml += '  <Font ss:Bold="1" ss:Size="12" ss:Color="#FFFFFF"/>\n';
+    xml += '  <Interior ss:Color="#4A90A4" ss:Pattern="Solid"/>\n';
+    xml += '</Style>\n';
+    xml += '<Style ss:ID="Title">\n';
+    xml += '  <Font ss:Bold="1" ss:Size="14"/>\n';
+    xml += '</Style>\n';
+    xml += '</Styles>\n';
+    
+    // Summary Sheet
+    xml += '<Worksheet ss:Name="Summary">\n';
+    xml += '<Table>\n';
+    xml += '<Column ss:Width="200"/>\n';
+    xml += '<Column ss:Width="100"/>\n';
+    xml += '<Row><Cell ss:StyleID="Title"><Data ss:Type="String">EmailCraft AI - Analytics Summary</Data></Cell></Row>\n';
+    xml += `<Row><Cell><Data ss:Type="String">Exported: ${timestamp}</Data></Cell></Row>\n`;
+    xml += '<Row></Row>\n';
+    xml += '<Row><Cell ss:StyleID="Header"><Data ss:Type="String">Metric</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Value</Data></Cell></Row>\n';
+    xml += `<Row><Cell><Data ss:Type="String">Total Emails</Data></Cell><Cell><Data ss:Type="Number">${analyticsData.total_emails || 0}</Data></Cell></Row>\n`;
+    xml += `<Row><Cell><Data ss:Type="String">Average Score</Data></Cell><Cell><Data ss:Type="Number">${(analyticsData.avg_score || 0).toFixed(1)}</Data></Cell></Row>\n`;
+    xml += `<Row><Cell><Data ss:Type="String">Unique Companies</Data></Cell><Cell><Data ss:Type="Number">${analyticsData.unique_companies || 0}</Data></Cell></Row>\n`;
+    xml += `<Row><Cell><Data ss:Type="String">High Score Count (8+)</Data></Cell><Cell><Data ss:Type="Number">${analyticsData.high_score_count || 0}</Data></Cell></Row>\n`;
+    xml += '</Table>\n';
+    xml += '</Worksheet>\n';
+    
+    // Emails by Role Sheet
+    xml += '<Worksheet ss:Name="Emails by Role">\n';
+    xml += '<Table>\n';
+    xml += '<Column ss:Width="250"/>\n';
+    xml += '<Column ss:Width="80"/>\n';
+    xml += '<Row><Cell ss:StyleID="Header"><Data ss:Type="String">Role</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Count</Data></Cell></Row>\n';
     (analyticsData.roles_distribution || []).forEach(r => {
-        csv += `${r.role},${r.count}\n`;
+        xml += `<Row><Cell><Data ss:Type="String">${escapeXml(r.role)}</Data></Cell><Cell><Data ss:Type="Number">${r.count}</Data></Cell></Row>\n`;
     });
-    csv += '\n';
+    xml += '</Table>\n';
+    xml += '</Worksheet>\n';
     
-    csv += `SCORE DISTRIBUTION\n`;
-    csv += `Range,Count\n`;
+    // Score Distribution Sheet
+    xml += '<Worksheet ss:Name="Score Distribution">\n';
+    xml += '<Table>\n';
+    xml += '<Column ss:Width="120"/>\n';
+    xml += '<Column ss:Width="80"/>\n';
+    xml += '<Row><Cell ss:StyleID="Header"><Data ss:Type="String">Score Range</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Count</Data></Cell></Row>\n';
     (analyticsData.score_distribution || []).forEach(s => {
-        csv += `${s.range},${s.count}\n`;
+        xml += `<Row><Cell><Data ss:Type="String">${s.range}</Data></Cell><Cell><Data ss:Type="Number">${s.count}</Data></Cell></Row>\n`;
     });
+    xml += '</Table>\n';
+    xml += '</Worksheet>\n';
     
-    downloadFile(csv, `analytics_${timestamp}.csv`, 'text/csv');
-    showToast('Analytics exported successfully!');
+    // Template Performance Sheet
+    xml += '<Worksheet ss:Name="Template Performance">\n';
+    xml += '<Table>\n';
+    xml += '<Column ss:Width="250"/>\n';
+    xml += '<Column ss:Width="100"/>\n';
+    xml += '<Column ss:Width="80"/>\n';
+    xml += '<Row><Cell ss:StyleID="Header"><Data ss:Type="String">Template</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Average Score</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">Usage Count</Data></Cell></Row>\n';
+    (templatePerformance || []).forEach(t => {
+        xml += `<Row><Cell><Data ss:Type="String">${escapeXml(t.template_title || 'Unknown')}</Data></Cell><Cell><Data ss:Type="Number">${(t.avg_score || 0).toFixed(1)}</Data></Cell><Cell><Data ss:Type="Number">${t.usage_count || 0}</Data></Cell></Row>\n`;
+    });
+    xml += '</Table>\n';
+    xml += '</Worksheet>\n';
+    
+    xml += '</Workbook>';
+    
+    downloadFile(xml, `analytics_${timestamp}.xls`, 'application/vnd.ms-excel');
+    showToast('Analytics exported to Excel successfully!');
 }
 
 function downloadFile(content, filename, type) {

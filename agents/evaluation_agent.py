@@ -212,6 +212,15 @@ class EvaluationAgent:
             job_role_lower = job_role.lower()
             
             for issue in issues:
+                # Handle case where LLM returns dict instead of string
+                if isinstance(issue, dict):
+                    # Try to extract text from dict (common keys: 'text', 'issue', 'description')
+                    issue = issue.get('text') or issue.get('issue') or issue.get('description') or str(issue)
+                
+                # Ensure issue is a string
+                if not isinstance(issue, str):
+                    issue = str(issue)
+                    
                 issue_lower = issue.lower()
                 
                 # Don't flag CTA as vague if it already has time commitment
@@ -242,10 +251,20 @@ class EvaluationAgent:
             
             # OPTIMIZED: Add strengths based on quick checks
             strengths = eval_dict.get("strengths", [])
-            if quick_checks['has_time_cta'] and not any('cta' in s.lower() for s in strengths):
-                strengths.append("CTA includes specific time commitment")
-            if quick_checks['has_portfolio'] and not any('portfolio' in s.lower() for s in strengths):
-                strengths.append("Portfolio link included")
+            
+            # Normalize strengths - ensure they're strings
+            normalized_strengths = []
+            for strength in strengths:
+                if isinstance(strength, dict):
+                    strength = strength.get('text') or strength.get('strength') or strength.get('description') or str(strength)
+                if not isinstance(strength, str):
+                    strength = str(strength)
+                normalized_strengths.append(strength)
+            
+            if quick_checks['has_time_cta'] and not any('cta' in s.lower() for s in normalized_strengths):
+                normalized_strengths.append("CTA includes specific time commitment")
+            if quick_checks['has_portfolio'] and not any('portfolio' in s.lower() for s in normalized_strengths):
+                normalized_strengths.append("Portfolio link included")
             
             return EvaluationMetrics(
                 clarity_score=safe_float(eval_dict.get("clarity_score", 7.0)),
@@ -255,7 +274,7 @@ class EvaluationAgent:
                 personalization_score=safe_float(eval_dict.get("personalization_score", 7.0)),
                 overall_score=safe_float(eval_dict.get("overall_score", 7.0)),
                 issues=filtered_issues,
-                strengths=strengths  # Use enhanced strengths
+                strengths=normalized_strengths  # Use normalized strengths
             )
         except (json.JSONDecodeError, ValueError, KeyError) as e:
             logger.warning(f"Evaluation parsing failed, using defaults. Error: {e}")
@@ -311,9 +330,29 @@ class EvaluationAgent:
             elif not improvements:
                 improvements = ["Refined email based on evaluation"]
             
+            # Normalize improvements - ensure they're strings
+            normalized_improvements = []
+            for improvement in improvements:
+                if isinstance(improvement, dict):
+                    improvement = improvement.get('text') or improvement.get('improvement') or str(improvement)
+                if not isinstance(improvement, str):
+                    improvement = str(improvement)
+                normalized_improvements.append(improvement)
+            
             alternative_subjects = opt_dict.get("alternative_subject_lines", None)
             
-            return optimized_draft, improvements, alternative_subjects
+            # Normalize alternative subjects - ensure they're strings
+            if alternative_subjects:
+                normalized_alt_subjects = []
+                for subject in alternative_subjects:
+                    if isinstance(subject, dict):
+                        subject = subject.get('text') or subject.get('subject') or str(subject)
+                    if not isinstance(subject, str):
+                        subject = str(subject)
+                    normalized_alt_subjects.append(subject)
+                alternative_subjects = normalized_alt_subjects
+            
+            return optimized_draft, normalized_improvements, alternative_subjects
         except (json.JSONDecodeError, KeyError) as e:
             logger.warning(f"Optimization parsing failed, using original. Error: {e}")
             return email_draft, ["Optimization attempted but parsing failed"], None
@@ -370,7 +409,15 @@ Return ONLY a JSON array with 3 professional subjects using ACTUAL company/role 
             subjects = json.loads(response_text)
             
             if isinstance(subjects, list):
-                return subjects[:3]
+                # Normalize subjects - ensure they're strings
+                normalized_subjects = []
+                for subject in subjects[:3]:
+                    if isinstance(subject, dict):
+                        subject = subject.get('text') or subject.get('subject') or str(subject)
+                    if not isinstance(subject, str):
+                        subject = str(subject)
+                    normalized_subjects.append(subject)
+                return normalized_subjects
             return [original_subject]
         except (json.JSONDecodeError, TypeError):
             return [original_subject, f"Re: {original_subject}", f"Quick question: {original_subject[:30]}"]
