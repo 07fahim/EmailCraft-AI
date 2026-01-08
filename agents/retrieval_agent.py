@@ -1,6 +1,6 @@
 """
-Template Retrieval Agent - RAG-based template retrieval using ChromaDB.
-Updated to use shared ChromaDB utilities.
+Template Retrieval Agent - RAG-based template retrieval.
+Auto-selects vector store: ChromaDB (local) or Pinecone (production).
 """
 
 import json
@@ -9,7 +9,7 @@ from typing import List
 from pathlib import Path
 
 from models.schemas import PersonaOutput, RetrievedTemplate, EmailTemplate
-from utils.chroma_utils import get_chroma_client, get_or_create_collection
+from utils.vector_store import get_collection
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class TemplateRetrievalAgent:
     Template Retrieval Agent - RAG system for email templates.
     
     Responsibilities:
-    - Store email templates in ChromaDB
+    - Store email templates in vector store
     - Semantic similarity search
     - Retrieve top-K relevant templates
     """
@@ -29,9 +29,8 @@ class TemplateRetrievalAgent:
         self.top_k = top_k
         self.collection_name = collection_name
         
-        # Use shared ChromaDB utility
-        self.client = get_chroma_client()
-        self.collection = get_or_create_collection(self.client, collection_name)
+        # Use unified vector store (auto-selects ChromaDB or Pinecone)
+        self.collection = get_collection(collection_name)
         
         # Initialize templates if collection is empty
         if self.collection.count() == 0:

@@ -4,7 +4,6 @@ Orchestrates the multi-agent pipeline for email generation.
 OPTIMIZED: Faster execution, better error handling, execution tracking.
 """
 
-import os
 import logging
 import time
 from typing import Dict, Any, Optional
@@ -17,14 +16,11 @@ from models.schemas import (
     PortfolioItem
 )
 from agents.persona_agent import PersonaAnalyzerAgent
+from agents.retrieval_agent import TemplateRetrievalAgent
+from agents.portfolio_agent import PortfolioRetrievalAgent
 from agents.generation_agent import EmailGenerationAgent
 from agents.evaluation_agent import EvaluationAgent
 from agents.scraper_agent import JobScrapingAgent
-
-# Using Pinecone for semantic vector search
-from agents.retrieval_agent_pinecone import TemplateRetrievalAgent
-from agents.portfolio_agent_pinecone import PortfolioRetrievalAgent
-logging.info("📌 Using Pinecone for semantic search")
 
 # Import database manager
 from database.db_manager import get_db

@@ -1,6 +1,7 @@
 """
 Portfolio/Case Study Retrieval Agent - RAG-based portfolio matching.
 Works with CSV portfolio format (Techstack, Links).
+Auto-selects vector store: ChromaDB (local) or Pinecone (production).
 """
 
 import logging
@@ -9,7 +10,7 @@ from pathlib import Path
 import pandas as pd
 
 from models.schemas import PersonaOutput, ScrapedJobData
-from utils.chroma_utils import get_chroma_client, get_or_create_collection
+from utils.vector_store import get_collection
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class PortfolioRetrievalAgent:
 
     Responsibilities:
     - Load portfolio from CSV (Techstack, Links columns)
-    - Store in ChromaDB for semantic search
+    - Store in vector store for semantic search
     - Retrieve top-K relevant portfolio items based on job requirements
     """
 
@@ -34,7 +35,7 @@ class PortfolioRetrievalAgent:
         Initialize the portfolio retrieval agent.
 
         Args:
-            collection_name: ChromaDB collection name
+            collection_name: Vector store collection name
             top_k: Number of portfolio items to retrieve
             min_similarity: Minimum similarity score (0.0-1.0) to include item
         """
@@ -43,9 +44,8 @@ class PortfolioRetrievalAgent:
         self.min_similarity = min_similarity
         self.portfolio_path = Path("data/my_portfolio.csv")
 
-        # Initialize ChromaDB using shared utility
-        self.client = get_chroma_client()
-        self.collection = get_or_create_collection(self.client, collection_name)
+        # Initialize vector store (auto-selects ChromaDB or Pinecone)
+        self.collection = get_collection(collection_name)
 
         # Initialize with portfolio data if empty
         if self.collection.count() == 0:
@@ -276,7 +276,7 @@ class PortfolioRetrievalAgent:
                 n_results=min(self.top_k * 3, 10),  # Get more to filter
             )
         except Exception as e:
-            logger.error(f"ChromaDB query failed: {e}")
+            logger.error(f"Pinecone query failed: {e}")
             return []
 
         retrieved_items: List[Dict[str, Any]] = []

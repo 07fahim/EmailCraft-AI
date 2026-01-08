@@ -44,20 +44,12 @@ class SafeJSONResponse(JSONResponse):
             separators=(",", ":")
         ).encode("utf-8")
 
-# Using Pinecone for vector search - requires PINECONE_API_KEY env variable
-# Disable ChromaDB telemetry
-os.environ["ANONYMIZED_TELEMETRY"] = "False"
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-# Log the mode being used
-lite_mode = os.environ.get("LITE_MODE", "true").lower() == "true"
-logger.info(f"🔧 Running in {'LITE' if lite_mode else 'FULL'} mode")
 
 app = FastAPI(
     title="EmailCraft AI API",

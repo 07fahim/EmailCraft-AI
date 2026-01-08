@@ -1,5 +1,7 @@
 # Dockerfile for Cold Email AI Agent
 # Serves FastAPI backend + Static frontend
+# Vector Store: ChromaDB (local) or Pinecone (production - if PINECONE_API_KEY set)
+# Database: SQLite (local) or PostgreSQL (production - if DATABASE_URL set)
 
 FROM python:3.11-slim
 
@@ -26,9 +28,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Copy application code
 COPY . .
-
-# Create necessary directories
-RUN mkdir -p /app/vectorstore/chroma_db
 
 # Expose port
 EXPOSE 10000
