@@ -177,10 +177,77 @@ class PortfolioRetrievalAgent:
                                         if not any(exclude in r.lower() for exclude in EXCLUDE_KEYWORDS)]
                 if tech_responsibilities:
                     query_parts.append(" ".join(tech_responsibilities[:2]))
+            
+            # FALLBACK: If no skills found, infer from role keywords
+            if not filter_keywords and scraped_job_data.role:
+                role_lower = scraped_job_data.role.lower()
+                
+                # Generic role-to-skills mapping for various industries
+                role_skill_map = {
+                    # Tech roles
+                    'software': ['python', 'java', 'javascript', 'react', 'node.js', 'sql'],
+                    'full stack': ['react', 'node.js', 'mongodb', 'javascript', 'typescript'],
+                    'frontend': ['react', 'angular', 'vue', 'javascript', 'typescript', 'css'],
+                    'backend': ['python', 'java', 'node.js', 'postgresql', 'mongodb', 'api'],
+                    'data scientist': ['python', 'machine learning', 'tensorflow', 'pandas', 'sql'],
+                    'data engineer': ['python', 'sql', 'spark', 'airflow', 'aws', 'etl'],
+                    'data analyst': ['sql', 'excel', 'python', 'tableau', 'power bi'],
+                    'machine learning': ['python', 'tensorflow', 'pytorch', 'machine learning'],
+                    'devops': ['docker', 'kubernetes', 'jenkins', 'aws', 'terraform', 'ci/cd'],
+                    'mobile': ['react native', 'flutter', 'ios', 'android', 'swift', 'kotlin'],
+                    'cloud': ['aws', 'azure', 'gcp', 'kubernetes', 'docker', 'terraform'],
+                    # Marketing roles
+                    'marketing': ['seo', 'google analytics', 'hubspot', 'content', 'social media'],
+                    'digital marketing': ['seo', 'ppc', 'google ads', 'facebook ads', 'analytics'],
+                    'content': ['content writing', 'copywriting', 'seo', 'cms', 'wordpress'],
+                    'social media': ['social media', 'instagram', 'tiktok', 'content creation'],
+                    # Sales roles
+                    'sales': ['salesforce', 'crm', 'lead generation', 'b2b', 'negotiation'],
+                    'account': ['salesforce', 'account management', 'crm', 'client relations'],
+                    'business development': ['lead generation', 'crm', 'sales', 'partnerships'],
+                    # Finance roles
+                    'finance': ['excel', 'financial modeling', 'accounting', 'quickbooks', 'sap'],
+                    'accountant': ['quickbooks', 'excel', 'gaap', 'tax', 'bookkeeping'],
+                    'analyst': ['excel', 'sql', 'financial analysis', 'modeling', 'reporting'],
+                    # HR roles
+                    'hr': ['workday', 'recruiting', 'ats', 'employee relations', 'hris'],
+                    'recruiter': ['linkedin', 'ats', 'sourcing', 'interviewing', 'hiring'],
+                    'talent': ['recruiting', 'talent acquisition', 'ats', 'sourcing'],
+                    # Design roles
+                    'designer': ['figma', 'adobe', 'sketch', 'ui/ux', 'photoshop'],
+                    'ux': ['figma', 'user research', 'wireframing', 'prototyping', 'usability'],
+                    'graphic': ['photoshop', 'illustrator', 'indesign', 'branding', 'design'],
+                    # Operations roles
+                    'operations': ['project management', 'process improvement', 'erp', 'logistics'],
+                    'project manager': ['project management', 'agile', 'scrum', 'jira', 'pmp'],
+                    'product': ['product management', 'agile', 'roadmap', 'user stories', 'jira'],
+                    'supply chain': ['supply chain', 'logistics', 'inventory', 'erp', 'procurement'],
+                    # Healthcare roles
+                    'nurse': ['patient care', 'emr', 'clinical', 'nursing', 'healthcare'],
+                    'healthcare': ['emr', 'hipaa', 'patient care', 'clinical', 'medical'],
+                    'medical': ['medical coding', 'emr', 'healthcare', 'clinical', 'patient'],
+                    # Education roles
+                    'teacher': ['curriculum', 'instruction', 'classroom', 'education', 'teaching'],
+                    'instructor': ['training', 'curriculum', 'lms', 'e-learning', 'instruction'],
+                    # Customer service
+                    'customer': ['customer service', 'crm', 'zendesk', 'support', 'communication'],
+                    'support': ['customer support', 'ticketing', 'zendesk', 'troubleshooting'],
+                }
+                
+                for role_key, skills in role_skill_map.items():
+                    if role_key in role_lower:
+                        filter_keywords.update(skills[:4])
+                        query_parts.append(" ".join(skills[:4]))
+                        logger.info(f"📌 Inferred skills from role '{scraped_job_data.role}': {skills[:4]}")
+                        break
 
         if persona:
             if persona.pain_points:
-                query_parts.append(" ".join(persona.pain_points[:2]))
+                # Filter out non-tech pain points
+                tech_pain_points = [p for p in persona.pain_points[:2] 
+                                   if not any(exclude in p.lower() for exclude in EXCLUDE_KEYWORDS)]
+                if tech_pain_points:
+                    query_parts.append(" ".join(tech_pain_points))
             if persona.value_focus:
                 query_parts.append(persona.value_focus)
 
@@ -214,6 +281,31 @@ class PortfolioRetrievalAgent:
 
         retrieved_items: List[Dict[str, Any]] = []
         skipped_items: List[str] = []
+        
+        # Common professional keywords across industries
+        COMMON_SKILL_KEYWORDS = {
+            # Tech
+            'python', 'java', 'javascript', 'react', 'node', 'angular', 'vue',
+            'typescript', 'sql', 'mongodb', 'postgresql', 'mysql', 'docker',
+            'kubernetes', 'aws', 'azure', 'gcp', 'spring', 'django', 'flask',
+            'tensorflow', 'pytorch', 'machine', 'learning', 'backend', 'frontend',
+            'full-stack', 'fullstack', 'mobile', 'ios', 'android', 'kotlin', 'swift',
+            # Marketing
+            'seo', 'analytics', 'hubspot', 'marketing', 'content', 'social',
+            'advertising', 'ppc', 'campaigns', 'branding',
+            # Sales
+            'salesforce', 'crm', 'sales', 'b2b', 'lead', 'account',
+            # Finance
+            'excel', 'financial', 'accounting', 'quickbooks', 'sap', 'modeling',
+            # HR
+            'recruiting', 'workday', 'ats', 'talent', 'hiring',
+            # Design
+            'figma', 'adobe', 'photoshop', 'illustrator', 'ui', 'ux', 'design',
+            # Project Management
+            'agile', 'scrum', 'jira', 'project', 'management', 'pmp',
+            # General
+            'communication', 'leadership', 'strategy', 'analysis', 'reporting'
+        }
 
         if results.get("ids") and results["ids"][0]:
             for i in range(len(results["ids"][0])):
@@ -236,6 +328,15 @@ class PortfolioRetrievalAgent:
                         if keyword in techstack_lower:
                             matches_keyword = True
                             matched_keywords.append(keyword)
+                    
+                    # FALLBACK: If no keyword match but high similarity score, still include
+                    if not matches_keyword and distance < 0.8:
+                        # Check if it matches any common skill keyword
+                        for common_kw in COMMON_SKILL_KEYWORDS:
+                            if common_kw in techstack_lower:
+                                matches_keyword = True
+                                matched_keywords.append(f"~{common_kw}")  # Mark as fallback match
+                                break
                 else:
                     # No filter keywords - include all
                     matches_keyword = True

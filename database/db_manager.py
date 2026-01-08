@@ -6,23 +6,47 @@ For beginners: Think of this as helper functions that let you:
 - get_analytics() - Get statistics
 - get_all_emails() - Get email history
 
-No need to understand SQL - just use these functions!
+Supports both SQLite (local) and PostgreSQL (production via Supabase).
 """
 
+import os
 import json
 import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine, func, desc
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 from database.models import Base, EmailGeneration, TemplateUsage
 
 logger = logging.getLogger(__name__)
 
 
+def get_database_url() -> str:
+    """
+    Get database URL from environment or use SQLite fallback.
+    
+    Priority:
+    1. DATABASE_URL environment variable (for production - Supabase/PostgreSQL)
+    2. SQLite file (for local development)
+    """
+    database_url = os.environ.get("DATABASE_URL")
+    
+    if database_url:
+        # Supabase/Heroku use 'postgres://' but SQLAlchemy needs 'postgresql://'
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        logger.info("✅ Using PostgreSQL database (Supabase)")
+        return database_url
+    else:
+        logger.info("✅ Using SQLite database (local development)")
+        return "sqlite:///analytics.db"
+
+
 class DatabaseManager:
     """
     Simple database manager for beginners.
+    Supports SQLite (local) and PostgreSQL (production).
     
     Usage:
         db = DatabaseManager()
@@ -30,15 +54,27 @@ class DatabaseManager:
         analytics = db.get_analytics()
     """
     
-    def __init__(self, db_path: str = "analytics.db"):
+    def __init__(self, db_path: str = None):
         """
         Initialize database connection.
         
         Args:
-            db_path: Path to SQLite database file (created automatically)
+            db_path: Optional path to SQLite database file (ignored if DATABASE_URL is set)
         """
-        # Create database engine (connects to SQLite file)
-        self.engine = create_engine(f"sqlite:///{db_path}", echo=False)
+        database_url = get_database_url()
+        
+        # Use NullPool for PostgreSQL to avoid connection issues
+        if database_url.startswith("postgresql://"):
+            self.engine = create_engine(
+                database_url,
+                poolclass=NullPool,
+                echo=False
+            )
+        else:
+            # SQLite for local development
+            if db_path:
+                database_url = f"sqlite:///{db_path}"
+            self.engine = create_engine(database_url, echo=False)
         
         # Create all tables if they don't exist
         Base.metadata.create_all(self.engine)
@@ -47,7 +83,8 @@ class DatabaseManager:
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
         
-        logger.info(f"✅ Database initialized: {db_path}")
+        db_type = "PostgreSQL" if "postgresql" in database_url else "SQLite"
+        logger.info(f"✅ Database initialized: {db_type}")
     
     def save_email(self, email_data: Dict[str, Any]) -> int:
         """

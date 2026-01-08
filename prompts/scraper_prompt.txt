@@ -7,21 +7,32 @@ Job Posting Content:
 
 Your task is to extract structured information that reveals:
 - What role they're hiring for (EXACT job title)
-- What skills and technologies they need
+- What skills, tools, and competencies they need (specific to the role)
 - What level of experience they're seeking
 - What problems they're trying to solve (indicated by responsibilities)
 - What keywords indicate their priorities
 
 CRITICAL INSTRUCTIONS:
 1. Extract the EXACT job title as stated - do NOT change or interpret it
-2. Company name should be ONLY the company name (e.g., "Block" not "Block, Inc." unless that's exactly how it's written)
-3. Skills should be specific technologies, not generic terms
-4. Experience should be a simple string like "5+ years" or "Senior level"
+2. Company name should be ONLY the company name
+3. Skills should be JOB-RELEVANT skills - tools, software, methodologies, certifications, competencies
+4. DO NOT include employee benefits like "Medical insurance", "401k", "PTO", "health benefits", "vacation"
+5. Experience should be a simple string like "5+ years" or "Senior level"
+
+EXAMPLES OF VALID SKILLS BY JOB TYPE:
+- Tech: Python, React, AWS, Docker, SQL, Machine Learning
+- Marketing: SEO, Google Analytics, HubSpot, Content Marketing, Social Media
+- Sales: Salesforce, CRM, Lead Generation, Negotiation, B2B Sales
+- Finance: Excel, Financial Modeling, QuickBooks, SAP, Risk Analysis
+- Healthcare: EMR, Patient Care, HIPAA, Medical Coding, Nursing
+- HR: Workday, Recruiting, ATS, Employee Relations, SHRM
+- Design: Figma, Adobe Creative Suite, UX/UI, Wireframing, Prototyping
+- Operations: Supply Chain, Lean Six Sigma, Project Management, ERP
 
 Return ONLY valid JSON with these fields (no markdown, no explanations):
 {{
   "role": "exact job title from posting",
-  "skills": ["Python", "TensorFlow", "AWS", "etc"],
+  "skills": ["Skill1", "Skill2", "Tool1", "Certification1"],
   "experience": "experience level or years required",
   "responsibilities": ["responsibility 1", "responsibility 2", "responsibility 3"],
   "keywords": ["keyword1", "keyword2", "keyword3"],
@@ -29,11 +40,12 @@ Return ONLY valid JSON with these fields (no markdown, no explanations):
 }}
 
 IMPORTANT:
-- role: Must be the EXACT title (e.g., "Machine Learning Engineer" not "ML Engineer" unless that's what's written)
-- skills: Array of specific technologies/tools mentioned
+- role: Must be the EXACT title from the posting
+- skills: Array of specific tools, software, methodologies, certifications relevant to the job
+- skills: DO NOT include: insurance, benefits, salary, PTO, vacation, health, dental, 401k, equity, culture, team
 - experience: String (e.g., "2+ years", "Senior", "5-7 years")
 - responsibilities: Array of 3-5 key duties
-- keywords: Array of important terms that indicate priorities
+- keywords: Array of important terms that indicate job priorities
 - company: Just the company name, null if not found
 
 Return ONLY the JSON object, nothing else.

@@ -71,6 +71,7 @@ class EmailGeneration(Base):
         return {
             "id": self.id,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "created_at": self.timestamp.strftime("%Y-%m-%d %H:%M") if self.timestamp else None,
             "job_url": self.job_url,
             "role": self.role,
             "industry": self.industry,
