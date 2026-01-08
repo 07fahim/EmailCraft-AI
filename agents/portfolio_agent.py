@@ -131,6 +131,16 @@ class PortfolioRetrievalAgent:
         """
         Retrieve relevant portfolio items using RAG + keyword filtering.
         """
+        
+        # Keywords to exclude (non-technical terms that shouldn't be used for matching)
+        EXCLUDE_KEYWORDS = {
+            'benefits', 'insurance', 'medical', 'dental', 'vision', 'vacation', 'pto',
+            'paid', 'time', 'off', 'health', 'wellness', 'retirement', '401k', 'bonus',
+            'salary', 'compensation', 'perks', 'flexible', 'remote', 'hybrid', 'onsite',
+            'team', 'culture', 'environment', 'collaborative', 'dynamic', 'fast-paced',
+            'startup', 'company', 'office', 'equity', 'stock', 'options', 'gym',
+            'lunch', 'snacks', 'meals', 'commuter', 'relocation', 'visa', 'sponsorship'
+        }
 
         query_parts = []
         # Collect keywords for filtering (skills, technologies)
@@ -138,21 +148,35 @@ class PortfolioRetrievalAgent:
 
         if scraped_job_data:
             if scraped_job_data.skills:
-                query_parts.append(" ".join(scraped_job_data.skills[:8]))
-                # Extract individual skill keywords for filtering
-                for skill in scraped_job_data.skills[:10]:
-                    # Split by common delimiters and add each keyword
-                    for word in skill.lower().replace(',', ' ').replace('/', ' ').split():
-                        if len(word) > 2:  # Skip very short words
-                            filter_keywords.add(word)
+                # Filter out non-technical skills
+                tech_skills = [s for s in scraped_job_data.skills[:10] 
+                              if not any(exclude in s.lower() for exclude in EXCLUDE_KEYWORDS)]
+                if tech_skills:
+                    query_parts.append(" ".join(tech_skills[:8]))
+                    # Extract individual skill keywords for filtering
+                    for skill in tech_skills:
+                        # Split by common delimiters and add each keyword
+                        for word in skill.lower().replace(',', ' ').replace('/', ' ').split():
+                            if len(word) > 2 and word not in EXCLUDE_KEYWORDS:
+                                filter_keywords.add(word)
+            
             if scraped_job_data.keywords:
-                query_parts.append(" ".join(scraped_job_data.keywords[:5]))
-                for kw in scraped_job_data.keywords[:8]:
-                    for word in kw.lower().replace(',', ' ').replace('/', ' ').split():
-                        if len(word) > 2:
-                            filter_keywords.add(word)
+                # Filter keywords to only include tech-related terms
+                tech_keywords = [kw for kw in scraped_job_data.keywords[:8]
+                                if not any(exclude in kw.lower() for exclude in EXCLUDE_KEYWORDS)]
+                if tech_keywords:
+                    query_parts.append(" ".join(tech_keywords[:5]))
+                    for kw in tech_keywords:
+                        for word in kw.lower().replace(',', ' ').replace('/', ' ').split():
+                            if len(word) > 2 and word not in EXCLUDE_KEYWORDS:
+                                filter_keywords.add(word)
+            
+            # Use responsibilities but filter out benefits-related content
             if scraped_job_data.responsibilities:
-                query_parts.append(" ".join(scraped_job_data.responsibilities[:2]))
+                tech_responsibilities = [r for r in scraped_job_data.responsibilities[:3]
+                                        if not any(exclude in r.lower() for exclude in EXCLUDE_KEYWORDS)]
+                if tech_responsibilities:
+                    query_parts.append(" ".join(tech_responsibilities[:2]))
 
         if persona:
             if persona.pain_points:
