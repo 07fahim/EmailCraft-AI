@@ -23,3 +23,9 @@ else:
 __all__ = [
     "PlannerAgent",
     "PersonaAnalyzerAgent",
+    "TemplateRetrievalAgent",
+    "EmailGenerationAgent",
+    "EvaluationAgent",
+    "PortfolioRetrievalAgent",
+    "JobScrapingAgent",
+]
