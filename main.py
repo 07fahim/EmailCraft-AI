@@ -44,14 +44,8 @@ class SafeJSONResponse(JSONResponse):
             separators=(",", ":")
         ).encode("utf-8")
 
-# VECTOR_MODE: Controls which vector search backend to use
-# Options:
-#   PINECONE - Best accuracy, cloud-based semantic search (requires PINECONE_API_KEY)
-#   LITE - Keyword matching, no dependencies, works anywhere (default)
-#   FULL - ChromaDB with ONNX embeddings (high memory, not for free tier)
-os.environ.setdefault("VECTOR_MODE", "PINECONE" if os.environ.get("PINECONE_API_KEY") else "LITE")
-
-# Disable ChromaDB telemetry (only used if VECTOR_MODE=FULL)
+# Using Pinecone for vector search - requires PINECONE_API_KEY env variable
+# Disable ChromaDB telemetry
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
 # Configure logging

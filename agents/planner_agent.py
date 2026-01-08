@@ -21,24 +21,10 @@ from agents.generation_agent import EmailGenerationAgent
 from agents.evaluation_agent import EvaluationAgent
 from agents.scraper_agent import JobScrapingAgent
 
-# Vector search mode selection:
-# - PINECONE: Best accuracy, cloud-based (requires PINECONE_API_KEY)
-# - LITE: Keyword matching, no external dependencies, works anywhere
-# - FULL: ChromaDB with ONNX embeddings (high memory usage)
-VECTOR_MODE = os.environ.get("VECTOR_MODE", "LITE").upper()
-
-if VECTOR_MODE == "PINECONE" and os.environ.get("PINECONE_API_KEY"):
-    from agents.retrieval_agent_pinecone import TemplateRetrievalAgent
-    from agents.portfolio_agent_pinecone import PortfolioRetrievalAgent
-    logging.info("📌 Using PINECONE mode (semantic search via Pinecone)")
-elif VECTOR_MODE == "FULL":
-    from agents.retrieval_agent import TemplateRetrievalAgent
-    from agents.portfolio_agent import PortfolioRetrievalAgent
-    logging.info("🔧 Using FULL mode (ChromaDB embeddings)")
-else:
-    from agents.retrieval_agent_lite import TemplateRetrievalAgent
-    from agents.portfolio_agent_lite import PortfolioRetrievalAgent
-    logging.info("🪶 Using LITE mode (keyword matching)")
+# Using Pinecone for semantic vector search
+from agents.retrieval_agent_pinecone import TemplateRetrievalAgent
+from agents.portfolio_agent_pinecone import PortfolioRetrievalAgent
+logging.info("📌 Using Pinecone for semantic search")
 
 # Import database manager
 from database.db_manager import get_db
