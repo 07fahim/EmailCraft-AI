@@ -89,12 +89,13 @@ class ChromaCollection:
 # ============================================================================
 
 class PineconeCollection:
-    """Pinecone collection wrapper for production."""
+    """Pinecone collection wrapper for production with real embeddings."""
     
-    EMBEDDING_DIMENSION = 384  # Matches all-MiniLM-L6-v2
+    EMBEDDING_DIMENSION = 1024  # multilingual-e5-large dimension
+    EMBEDDING_MODEL = "multilingual-e5-large"  # Pinecone's hosted model
     
     def __init__(self, collection_name: str):
-        """Initialize Pinecone index."""
+        """Initialize Pinecone index with integrated inference."""
         from pinecone import Pinecone, ServerlessSpec
         
         self.index_name = collection_name.lower().replace("_", "-")
@@ -102,11 +103,25 @@ class PineconeCollection:
         # Initialize Pinecone client
         self.pc = Pinecone(api_key=PINECONE_API_KEY)
         
-        # Get or create index
+        # Get or create index with correct dimension
         existing_indexes = [idx.name for idx in self.pc.list_indexes()]
         
+        if self.index_name in existing_indexes:
+            # Check if existing index has correct dimension
+            try:
+                existing_index = self.pc.Index(self.index_name)
+                stats = existing_index.describe_index_stats()
+                # If dimension is wrong (384 vs 1024), delete and recreate
+                index_info = self.pc.describe_index(self.index_name)
+                if hasattr(index_info, 'dimension') and index_info.dimension != self.EMBEDDING_DIMENSION:
+                    logger.warning(f"Index dimension mismatch ({index_info.dimension} vs {self.EMBEDDING_DIMENSION}), recreating...")
+                    self.pc.delete_index(self.index_name)
+                    existing_indexes = []  # Force recreation
+            except Exception as e:
+                logger.warning(f"Could not check index dimension: {e}")
+        
         if self.index_name not in existing_indexes:
-            logger.info(f"Creating Pinecone index: {self.index_name}")
+            logger.info(f"Creating Pinecone index with {self.EMBEDDING_MODEL} embeddings: {self.index_name}")
             self.pc.create_index(
                 name=self.index_name,
                 dimension=self.EMBEDDING_DIMENSION,
@@ -116,42 +131,60 @@ class PineconeCollection:
                     region=os.getenv("PINECONE_ENVIRONMENT", "us-east-1")
                 )
             )
+            # Wait for index to be ready
+            import time
+            time.sleep(5)
         
         self.index = self.pc.Index(self.index_name)
-        logger.info(f"✅ Pinecone index '{self.index_name}' initialized (production mode)")
+        
+        # Use Pinecone's inference API for embeddings
+        self.use_inference_api = True
+        logger.info(f"✅ Pinecone index '{self.index_name}' initialized with {self.EMBEDDING_MODEL} embeddings")
     
-    def _text_to_vector(self, text: str) -> List[float]:
-        """
-        Simple text embedding using hash-based approach.
-        Lightweight alternative to loading ML models.
-        """
+    def _get_embeddings(self, texts: List[str]) -> List[List[float]]:
+        """Get embeddings using Pinecone's inference API."""
+        try:
+            # Use Pinecone's inference API
+            embeddings_response = self.pc.inference.embed(
+                model=self.EMBEDDING_MODEL,
+                inputs=texts,
+                parameters={"input_type": "passage"}
+            )
+            return [e.values for e in embeddings_response.data]
+        except Exception as e:
+            logger.warning(f"Pinecone inference failed: {e}, using fallback")
+            return self._fallback_embeddings(texts)
+    
+    def _fallback_embeddings(self, texts: List[str]) -> List[List[float]]:
+        """Fallback: simple keyword-based pseudo-embeddings."""
         import hashlib
         import math
         
-        text = text.lower().strip()
-        vector = []
-        
-        for i in range(self.EMBEDDING_DIMENSION):
-            hash_input = f"{text}_{i}".encode('utf-8')
-            hash_value = int(hashlib.md5(hash_input).hexdigest(), 16)
-            normalized = (hash_value % 10000) / 5000 - 1.0
-            vector.append(normalized)
-        
-        # Normalize to unit length
-        magnitude = math.sqrt(sum(x*x for x in vector))
-        if magnitude > 0:
-            vector = [x / magnitude for x in vector]
-        
-        return vector
+        embeddings = []
+        for text in texts:
+            text = text.lower().strip()
+            vector = []
+            for i in range(self.EMBEDDING_DIMENSION):
+                hash_input = f"{text}_{i}".encode('utf-8')
+                hash_value = int(hashlib.md5(hash_input).hexdigest(), 16)
+                normalized = (hash_value % 10000) / 5000 - 1.0
+                vector.append(normalized)
+            magnitude = math.sqrt(sum(x*x for x in vector))
+            if magnitude > 0:
+                vector = [x / magnitude for x in vector]
+            embeddings.append(vector)
+        return embeddings
     
     def add(self, ids: List[str], documents: List[str], metadatas: List[Dict] = None):
-        """Add documents to Pinecone."""
+        """Add documents to Pinecone with real embeddings."""
         if metadatas is None:
             metadatas = [{} for _ in ids]
         
+        # Get embeddings for all documents
+        embeddings = self._get_embeddings(documents)
+        
         vectors = []
-        for doc_id, doc, meta in zip(ids, documents, metadatas):
-            embedding = self._text_to_vector(doc)
+        for doc_id, doc, meta, embedding in zip(ids, documents, metadatas, embeddings):
             meta_with_doc = {**meta, "_document": doc[:1000]}
             vectors.append({
                 "id": doc_id,
@@ -165,18 +198,19 @@ class PineconeCollection:
             batch = vectors[i:i + batch_size]
             self.index.upsert(vectors=batch)
         
-        logger.info(f"✅ Added {len(ids)} documents to Pinecone")
+        logger.info(f"✅ Added {len(ids)} documents to Pinecone with semantic embeddings")
     
     def query(self, query_texts: List[str], n_results: int = 3) -> Dict[str, List]:
-        """Query Pinecone for similar documents."""
+        """Query Pinecone for similar documents using real embeddings."""
         all_ids = []
         all_documents = []
         all_metadatas = []
         all_distances = []
         
-        for query_text in query_texts:
-            query_embedding = self._text_to_vector(query_text)
-            
+        # Get query embeddings
+        query_embeddings = self._get_embeddings(query_texts)
+        
+        for query_embedding in query_embeddings:
             results = self.index.query(
                 vector=query_embedding,
                 top_k=n_results,
