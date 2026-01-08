@@ -2,10 +2,13 @@
 Central Groq client utility for all LLM operations.
 All agents must use this client to ensure consistency.
 OPTIMIZED: Added warm-up and lower temperature for better first-try results.
+RATE LIMITING: Added throttling to avoid Groq 429 errors.
 """
 
 import os
+import time
 import logging
+import threading
 from typing import Optional
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
@@ -13,6 +16,28 @@ from dotenv import load_dotenv
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+
+class RateLimitedChatGroq(ChatGroq):
+    """ChatGroq wrapper with rate limiting to avoid 429 errors."""
+    
+    # Class-level rate limiting (shared across all instances)
+    _last_call_time = 0.0
+    _lock = threading.Lock()
+    _min_interval = 1.5  # Minimum seconds between API calls
+    
+    def invoke(self, *args, **kwargs):
+        """Rate-limited invoke method."""
+        with RateLimitedChatGroq._lock:
+            now = time.time()
+            elapsed = now - RateLimitedChatGroq._last_call_time
+            if elapsed < RateLimitedChatGroq._min_interval:
+                sleep_time = RateLimitedChatGroq._min_interval - elapsed
+                logger.debug(f"Rate limiting: waiting {sleep_time:.2f}s before API call")
+                time.sleep(sleep_time)
+            RateLimitedChatGroq._last_call_time = time.time()
+        
+        return super().invoke(*args, **kwargs)
 
 
 class GroqClient:
@@ -44,7 +69,8 @@ class GroqClient:
         if GroqClient._llm is None or GroqClient._model_name != model_name:
             GroqClient._model_name = model_name
             # OPTIMIZED: Lower temperature (0.5) for more consistent, accurate results
-            GroqClient._llm = ChatGroq(
+            # Use RateLimitedChatGroq to avoid 429 rate limit errors
+            GroqClient._llm = RateLimitedChatGroq(
                 groq_api_key=api_key,
                 model_name=model_name,
                 temperature=0.5,  # Lower for consistency
@@ -87,7 +113,7 @@ class GroqClient:
         
         model = model_name or os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
         
-        return ChatGroq(
+        return RateLimitedChatGroq(
             groq_api_key=api_key,
             model_name=model,
             temperature=temperature,

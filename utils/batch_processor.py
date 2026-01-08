@@ -215,8 +215,9 @@ class BatchEmailProcessor:
                     stats['successful'] += 1
                     total_score += score
                     
-                    # Add delay between successful requests to avoid rate limits
-                    time.sleep(1.5)
+                    # Add delay between successful requests to avoid Groq rate limits
+                    # Each email uses ~4-5 LLM calls, so need more spacing
+                    time.sleep(5)
                     
                 else:
                     # API error - also parse safely
