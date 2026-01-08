@@ -200,87 +200,92 @@ Return ONLY valid JSON:
                 
                 # Increased timeout to 20 seconds for slow sites
                 response = requests.get(job_url, headers=self.headers, timeout=20)
-            response.raise_for_status()
-            
-            # Parse HTML
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Extract clean text
-            job_text = self._extract_text_from_html(soup)
-            
-            if not job_text or len(job_text) < 100:
-                logger.warning("⚠️ Insufficient content extracted from job posting")
-                return None
-            
-            # Limit text length for LLM (keep first 6000 chars)
-            job_text = job_text[:6000] if len(job_text) > 6000 else job_text
-            
-            logger.info(f"📄 Extracted {len(job_text)} characters from job posting")
-            
-            # Use LLM to extract structured data
-            prompt = self.prompt_template.format(job_content=job_text)
-            response_llm = self.llm.invoke(prompt)
-            response_text = response_llm.content.strip()
-            
-            # Parse JSON response with robust extraction
-            try:
-                # Extract JSON from response (handle markdown code blocks and extra text)
-                if "```json" in response_text:
-                    response_text = response_text.split("```json")[1].split("```")[0].strip()
-                elif "```" in response_text:
-                    response_text = response_text.split("```")[1].split("```")[0].strip()
+                response.raise_for_status()
                 
-                # Find JSON object using regex (handles extra text before/after)
-                json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_text, re.DOTALL)
-                if json_match:
-                    response_text = json_match.group(0)
+                # Parse HTML
+                soup = BeautifulSoup(response.content, 'html.parser')
                 
-                # Clean control characters
-                response_text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', response_text)
+                # Extract clean text
+                job_text = self._extract_text_from_html(soup)
                 
-                job_dict = json.loads(response_text)
+                if not job_text or len(job_text) < 100:
+                    logger.warning("⚠️ Insufficient content extracted from job posting")
+                    if attempt < max_retries - 1:
+                        continue
+                    return None
                 
-                # Create ScrapedJobData with safe extraction
-                scraped_data = ScrapedJobData(
-                    role=self._extract_string(job_dict.get("role"), "Unknown Role"),
-                    skills=self._extract_list(job_dict.get("skills")),
-                    experience=self._extract_string(job_dict.get("experience"), ""),
-                    responsibilities=self._extract_list(job_dict.get("responsibilities")),
-                    keywords=self._extract_list(job_dict.get("keywords")),
-                    company=self._extract_string(job_dict.get("company")) or None
-                )
+                # Limit text length for LLM (keep first 6000 chars)
+                job_text = job_text[:6000] if len(job_text) > 6000 else job_text
                 
-                logger.info(f"✅ Successfully extracted: {scraped_data.role} at {scraped_data.company or 'Unknown Company'}")
-                logger.info(f"   Skills: {', '.join(scraped_data.skills[:5])}...")
+                logger.info(f"📄 Extracted {len(job_text)} characters from job posting")
                 
-                # Save to cache with timestamp
-                JobScrapingAgent._url_cache[cache_key] = (scraped_data, time.time())
-                return scraped_data
+                # Use LLM to extract structured data
+                prompt = self.prompt_template.format(job_content=job_text)
+                response_llm = self.llm.invoke(prompt)
+                response_text = response_llm.content.strip()
                 
-            except json.JSONDecodeError as e:
-                logger.warning(f"⚠️ JSON parsing failed: {e}")
-                
-                # Fallback: try to extract role from text using regex
-                role_patterns = [
-                    r'(?:Job Title|Position|Role|Title)[:\s]+([A-Z][a-zA-Z\s]+)',
-                    r'(?:hiring|looking for|seeking)[:\s]+(?:a\s+)?([A-Z][a-zA-Z\s]+)',
-                ]
-                
-                role = "Unknown Role"
-                for pattern in role_patterns:
-                    match = re.search(pattern, job_text, re.IGNORECASE)
-                    if match:
-                        role = match.group(1).strip()
-                        break
-                
-                return ScrapedJobData(
-                    role=role,
-                    skills=[],
-                    experience="",
-                    responsibilities=[],
-                    keywords=[],
-                    company=None
-                )
+                # Parse JSON response with robust extraction
+                try:
+                    # Extract JSON from response (handle markdown code blocks and extra text)
+                    if "```json" in response_text:
+                        response_text = response_text.split("```json")[1].split("```")[0].strip()
+                    elif "```" in response_text:
+                        response_text = response_text.split("```")[1].split("```")[0].strip()
+                    
+                    # Find JSON object using regex (handles extra text before/after)
+                    json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_text, re.DOTALL)
+                    if json_match:
+                        response_text = json_match.group(0)
+                    
+                    # Clean control characters
+                    response_text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', response_text)
+                    
+                    job_dict = json.loads(response_text)
+                    
+                    # Create ScrapedJobData with safe extraction
+                    scraped_data = ScrapedJobData(
+                        role=self._extract_string(job_dict.get("role"), "Unknown Role"),
+                        skills=self._extract_list(job_dict.get("skills")),
+                        experience=self._extract_string(job_dict.get("experience"), ""),
+                        responsibilities=self._extract_list(job_dict.get("responsibilities")),
+                        keywords=self._extract_list(job_dict.get("keywords")),
+                        company=self._extract_string(job_dict.get("company")) or None
+                    )
+                    
+                    logger.info(f"✅ Successfully extracted: {scraped_data.role} at {scraped_data.company or 'Unknown Company'}")
+                    logger.info(f"   Skills: {', '.join(scraped_data.skills[:5])}...")
+                    
+                    # Save to cache with timestamp
+                    JobScrapingAgent._url_cache[cache_key] = (scraped_data, time.time())
+                    return scraped_data
+                    
+                except json.JSONDecodeError as e:
+                    logger.warning(f"⚠️ JSON parsing failed: {e}")
+                    if attempt < max_retries - 1:
+                        time.sleep(2)
+                        continue
+                    
+                    # Fallback: try to extract role from text using regex
+                    role_patterns = [
+                        r'(?:Job Title|Position|Role|Title)[:\s]+([A-Z][a-zA-Z\s]+)',
+                        r'(?:hiring|looking for|seeking)[:\s]+(?:a\s+)?([A-Z][a-zA-Z\s]+)',
+                    ]
+                    
+                    role = "Unknown Role"
+                    for pattern in role_patterns:
+                        match = re.search(pattern, job_text, re.IGNORECASE)
+                        if match:
+                            role = match.group(1).strip()
+                            break
+                    
+                    return ScrapedJobData(
+                        role=role,
+                        skills=[],
+                        experience="",
+                        responsibilities=[],
+                        keywords=[],
+                        company=None
+                    )
         
             except requests.exceptions.RequestException as e:
                 logger.warning(f"⚠️ Attempt {attempt + 1} failed: {e}")
