@@ -16,7 +16,7 @@ langchain-core>=0.1.0
 # Local: ChromaDB (lightweight, no external deps)
 # Production: Pinecone (cloud-based, low memory)
 chromadb>=0.5.0
-pinecone-client>=3.0.0
+pinecone>=5.0.0
 numpy<2.0  # ChromaDB compatibility
 
 # Web Scraping (for job postings)
