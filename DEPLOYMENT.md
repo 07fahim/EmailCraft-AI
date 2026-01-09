@@ -1,262 +1,317 @@
-# Deployment Guide
+# Deployment Guide 🚀
 
-This guide covers deploying EmailCraft AI to production using Docker and Render.
+Complete guide for deploying EmailCraft AI to production.
+
+---
+
+## 📋 Table of Contents
+
+- [Prerequisites](#-prerequisites)
+- [Production Architecture](#-production-architecture)
+- [Render Deployment](#-render-deployment)
+- [Environment Variables](#-environment-variables)
+- [Database Setup](#-database-setup)
+- [Vector Store Setup](#-vector-store-setup)
+- [Docker Deployment](#-docker-deployment)
+- [CI/CD Pipeline](#-cicd-pipeline)
+- [Troubleshooting](#-troubleshooting)
+
+---
 
 ## 📋 Prerequisites
 
-- GitHub account
-- [Render](https://render.com) account (free tier available)
-- GROQ API key from [console.groq.com](https://console.groq.com)
+| Service                          | Purpose    | Free Tier     |
+| -------------------------------- | ---------- | ------------- |
+| [Groq](https://console.groq.com) | LLM API    | ✅ 30 req/min |
+| [Render](https://render.com)     | Hosting    | ✅ 750 hrs/mo |
+| [Supabase](https://supabase.com) | PostgreSQL | ✅ 500 MB     |
+| [Pinecone](https://pinecone.io)  | Vector DB  | ✅ 1 index    |
+
+---
+
+## 🏗️ Production Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         RENDER                               │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              EmailCraft AI (Docker)                  │    │
+│  │  ┌──────────────┐  ┌──────────────┐                 │    │
+│  │  │   FastAPI    │  │   Frontend   │                 │    │
+│  │  │   Backend    │  │  (Static)    │                 │    │
+│  │  └──────────────┘  └──────────────┘                 │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+          │                    │                    │
+          ▼                    ▼                    ▼
+    ┌──────────┐        ┌──────────┐        ┌──────────┐
+    │  Groq    │        │ Supabase │        │ Pinecone │
+    │   LLM    │        │ Postgres │        │ Vectors  │
+    └──────────┘        └──────────┘        └──────────┘
+```
+
+### Local vs Production
+
+| Component       | Local                      | Production             |
+| --------------- | -------------------------- | ---------------------- |
+| Database        | SQLite                     | PostgreSQL (Supabase)  |
+| Vector Store    | ChromaDB                   | Pinecone               |
+| Embeddings      | sentence-transformers      | Pinecone Inference API |
+| Embedding Model | all-MiniLM-L6-v2           | multilingual-e5-large  |
+| Batch Delay     | 2 seconds                  | 30 seconds             |
+| Auto-Detection  | `PINECONE_API_KEY` not set | `PINECONE_API_KEY` set |
+
+---
+
+## 🖥️ Local Development Setup
+
+Running locally requires **minimal setup** - just a Groq API key!
+
+### What's Used Locally
+
+| Component        | Technology            | Description                                |
+| ---------------- | --------------------- | ------------------------------------------ |
+| **Database**     | SQLite                | Auto-created `emails.db` file              |
+| **Vector Store** | ChromaDB              | Local persistent storage in `vectorstore/` |
+| **Embeddings**   | sentence-transformers | Uses `all-MiniLM-L6-v2` model              |
+| **LLM**          | Groq                  | `llama-3.1-8b-instant` (free tier)         |
+
+### Installation
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/07fahim/EmailCraft-AI.git
+cd EmailCraft-AI
+
+# 2. Create virtual environment
+python -m venv venv
+
+# 3. Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
+# 4. Install dependencies
+pip install -r requirements.txt
+```
+
+### Configuration
+
+Create a `.env` file in the project root:
+
+```env
+# Required - Get from https://console.groq.com
+GROQ_API_KEY=gsk_your_api_key_here
+
+# Optional - Default is llama-3.1-8b-instant
+GROQ_MODEL=llama-3.1-8b-instant
+```
+
+### Run the App
+
+```bash
+python main.py
+```
+
+Open your browser: `http://localhost:8000`
+
+### Local Features
+
+- ✅ Single email generation
+- ✅ Batch processing (2-second delay)
+- ✅ Analytics dashboard
+- ✅ Email history
+- ✅ Excel export
+- ✅ Portfolio matching (ChromaDB)
+
+### Local File Structure
+
+```
+EmailCraft-AI/
+├── emails.db           # SQLite database (auto-created)
+├── vectorstore/
+│   └── chroma_db/      # ChromaDB storage (auto-created)
+└── .env                # Your API key
+```
+
+---
+
+## 🚀 Render Deployment (Production)
+
+Deploying to Render requires setting up **3 external services**:
+
+### What's Used in Production
+
+| Component        | Technology             | Free Tier                    |
+| ---------------- | ---------------------- | ---------------------------- |
+| **Hosting**      | Render (Docker)        | 750 hrs/month                |
+| **Database**     | PostgreSQL (Supabase)  | 500 MB                       |
+| **Vector Store** | Pinecone               | 1 index, 100k vectors        |
+| **Embeddings**   | Pinecone Inference API | Uses `multilingual-e5-large` |
+| **LLM**          | Groq                   | 30 requests/min              |
+
+### Step 1: Prepare Repository
+
+```bash
+# Ensure all files are committed
+git add .
+git commit -m "Ready for deployment"
+git push origin main
+```
+
+### Step 2: Create Render Service
+
+1. Go to [Render Dashboard](https://dashboard.render.com)
+2. Click **New +** → **Web Service**
+3. Connect your GitHub repository
+4. Configure:
+
+| Setting | Value               |
+| ------- | ------------------- |
+| Name    | `emailcraft-ai`     |
+| Runtime | Docker              |
+| Region  | Oregon (or closest) |
+| Branch  | `main`              |
+| Plan    | Free                |
+
+### Step 3: Set Environment Variables
+
+In Render Dashboard → Your Service → **Environment**:
+
+| Variable               | Value                  | Notes                      |
+| ---------------------- | ---------------------- | -------------------------- |
+| `GROQ_API_KEY`         | `gsk_xxxxx`            | Required                   |
+| `GROQ_MODEL`           | `llama-3.1-8b-instant` | Optional                   |
+| `PINECONE_API_KEY`     | `pcsk_xxxxx`           | For production             |
+| `PINECONE_ENVIRONMENT` | `us-east-1`            | Your Pinecone region       |
+| `DATABASE_URL`         | `postgresql://...`     | Supabase URL               |
+| `ANONYMIZED_TELEMETRY` | `False`                | Disable ChromaDB telemetry |
+
+### Step 4: Deploy
+
+1. Click **Deploy Service**
+2. Wait for build (~5-10 minutes)
+3. Access at: `https://emailcraft-ai.onrender.com`
+
+### Auto-Deploy
+
+Once connected, pushing to `main` automatically triggers deployment:
+
+```bash
+git push origin main  # Triggers auto-deploy
+```
+
+---
+
+## 🔐 Environment Variables
+
+### Required
+
+```env
+# LLM (Required)
+GROQ_API_KEY=gsk_your_api_key_here
+```
+
+### Production (Optional)
+
+```env
+# Database (Supabase PostgreSQL)
+DATABASE_URL=postgresql://postgres:password@db.xxx.supabase.co:5432/postgres
+
+# Vector Store (Pinecone)
+PINECONE_API_KEY=pcsk_your_api_key_here
+PINECONE_ENVIRONMENT=us-east-1
+
+# Model Configuration
+GROQ_MODEL=llama-3.1-8b-instant
+
+# Telemetry
+ANONYMIZED_TELEMETRY=False
+```
+
+---
+
+## 🗄️ Database Setup
+
+### Option 1: Supabase (Recommended)
+
+1. Create account at [supabase.com](https://supabase.com)
+2. Create new project
+3. Go to **Settings** → **Database**
+4. Copy **Connection string** (URI format)
+5. Add to Render as `DATABASE_URL`
+
+### Option 2: Render PostgreSQL
+
+1. In Render, create **PostgreSQL** service
+2. Copy **Internal Database URL**
+3. Add to your web service as `DATABASE_URL`
+
+### Auto-Migration
+
+Tables are created automatically on first run. The app detects:
+
+- `DATABASE_URL` set → PostgreSQL mode
+- `DATABASE_URL` not set → SQLite mode (local file)
+
+---
+
+## 🔍 Vector Store Setup
+
+### Local: ChromaDB (Automatic)
+
+No setup required! ChromaDB runs automatically in local mode:
+
+- **Location**: `vectorstore/chroma_db/`
+- **Embedding Model**: `all-MiniLM-L6-v2` (sentence-transformers)
+- **Dimensions**: 384
+
+### Production: Pinecone Setup
+
+1. Create account at [pinecone.io](https://pinecone.io)
+2. Create new index:
+   - **Name**: `email-templates` (auto-created by app)
+   - **Dimensions**: `1024`
+   - **Metric**: `cosine`
+   - **Cloud**: AWS
+   - **Region**: `us-east-1`
+3. Copy API key from dashboard
+4. Add to Render environment:
+   - `PINECONE_API_KEY`: Your API key
+   - `PINECONE_ENVIRONMENT`: `us-east-1`
+
+### Embedding Models Comparison
+
+| Environment    | Model                   | Dimensions | Provider                      |
+| -------------- | ----------------------- | ---------- | ----------------------------- |
+| **Local**      | `all-MiniLM-L6-v2`      | 384        | sentence-transformers (local) |
+| **Production** | `multilingual-e5-large` | 1024       | Pinecone Inference API        |
+
+### Auto-Detection
+
+The app automatically selects:
+
+- `PINECONE_API_KEY` set → Pinecone (production)
+- `PINECONE_API_KEY` not set → ChromaDB (local)
+
+---
 
 ## 🐳 Docker Deployment
 
-### Build Locally
+### Build & Run Locally
 
 ```bash
-# Build the Docker image
+# Build
 docker build -t emailcraft-ai .
 
-# Run locally
+# Run
 docker run -p 8000:10000 \
-  -e GROQ_API_KEY=your_api_key_here \
-  -e GROQ_MODEL=llama-3.1-8b-instant \
+  -e GROQ_API_KEY=your_key \
   emailcraft-ai
 ```
 
-Access at: `http://localhost:8000`
-
-### Docker Configuration
-
-The `Dockerfile` includes:
-
-- Python 3.11 slim base image
-- All dependencies from `requirements.txt`
-- Frontend static files served by FastAPI
-- Health check endpoint
-- Runs on port 10000 (Render default)
-
-## 🚀 Render Deployment
-
-> **Auto-Deploy Enabled**: Once set up, pushing to `main` branch automatically triggers deployment - no manual clicking needed!
-
-### Step 1: Prepare Your Repository
-
-1. **Create GitHub Repository**
-
-   ```bash
-   # Initialize git (if not already done)
-   git init
-   git add .
-   git commit -m "Initial commit"
-   ```
-
-2. **Create repo on GitHub** named `emailcraft-ai`
-
-3. **Push to GitHub**
-   ```bash
-   git remote add origin https://github.com/YOUR_USERNAME/emailcraft-ai.git
-   git branch -M main
-   git push -u origin main
-   ```
-
-### Step 2: Connect Render to GitHub
-
-1. **Go to Render Dashboard**: [https://dashboard.render.com](https://dashboard.render.com)
-
-2. **First-time GitHub Setup** (if not connected):
-   - Click your profile (top right) → **Account Settings**
-   - Scroll to **GitHub** section
-   - Click **Connect GitHub Account**
-   - Authorize Render to access your repositories
-   - Select **All repositories** or specific repos
-
-### Step 3: Deploy with Blueprint (Recommended)
-
-1. **Create New Service**
-
-   - Dashboard → Click **New +** → **Blueprint**
-
-2. **Select Repository**
-
-   - Choose `emailcraft-ai` from the list
-   - Click **Connect**
-
-3. **Review Blueprint**
-
-   - Render reads `render.yaml` automatically
-   - Service name: `emailcraft-ai`
-   - Region: Oregon (or closest to you)
-   - Plan: Free
-   - Click **Apply**
-
-4. **Configure Environment Variables** (IMPORTANT!)
-
-   - In the blueprint setup, you'll see environment variables
-   - Click **Edit** next to `GROQ_API_KEY`
-   - Enter your actual API key from [console.groq.com](https://console.groq.com)
-   - `GROQ_MODEL` is already set to `llama-3.1-8b-instant`
-
-5. **Deploy Service**
-
-   - Click **Create Services**
-   - Wait for initial build (~5-10 minutes)
-   - Monitor build logs in real-time
-
-6. **Verify Deployment**
-   - Once status shows **Live** (green)
-   - Your URL: `https://emailcraft-ai.onrender.com`
-   - Click the URL to test the app
-
-### Step 4: Enable Auto-Deploy (Already Set!)
-
-✅ **Auto-deploy is enabled by default** via `render.yaml`:
-
-```yaml
-autoDeploy: true
-```
-
-**How it works:**
-
-- Push to `main` → Render automatically detects → Builds → Deploys
-- No manual clicking needed after initial setup
-- Check **Events** tab to see auto-deploy history
-
-### Step 5: Verify Settings
-
-Go to your service → **Settings** tab and verify:
-
-**Service Details:**
-
-- ✅ Name: `emailcraft-ai`
-- ✅ Runtime: Docker
-- ✅ Branch: `main`
-- ✅ Auto-Deploy: Enabled
-
-**Build & Deploy:**
-
-- ✅ Dockerfile Path: `./Dockerfile`
-- ✅ Docker Command: Auto-detected from Dockerfile
-
-**Health Checks:**
-
-- ✅ Health Check Path: `/health`
-- ✅ Health check should pass after deployment
-
-**Environment Variables:**
-
-- ✅ `GROQ_API_KEY`: [your key]
-- ✅ `GROQ_MODEL`: `llama-3.1-8b-instant`
-- ✅ `ANONYMIZED_TELEMETRY`: `False`
-
-### Common First Deploy Issues
-
-**Issue: Build fails with "requirements.txt not found"**
-
-- Ensure all files are committed: `git status`
-- Push all files: `git add . && git commit -m "Add all files" && git push`
-
-**Issue: Service starts but crashes**
-
-- Check **Logs** tab for Python errors
-- Verify `GROQ_API_KEY` is set correctly
-- Test locally first: `docker build -t emailcraft-ai . && docker run -p 8000:10000 emailcraft-ai`
-
-**Issue: Service shows "Deploying" forever**
-
-- Check build logs for stuck steps
-- Free tier may be slower during peak times
-- Cancel and retry deployment
-
-**Issue: Can't connect to GitHub**
-
-- Revoke and reconnect GitHub in Account Settings
-- Ensure repository is public or Render has access to private repos
-
-### Option 2: Manual Docker Service
-
-1. **Go to Render Dashboard**
-2. **New** → **Web Service**
-3. **Connect Repository**
-4. **Configure**:
-
-   - Name: `emailcraft-ai`
-   - Runtime: `Docker`
-   - Region: Oregon (or closest)
-   - Branch: `main`
-   - Plan: Free
-
-5. **Environment Variables**:
-
-   ```
-   GROQ_API_KEY=your_api_key_here
-   GROQ_MODEL=llama-3.1-8b-instant
-   ANONYMIZED_TELEMETRY=False
-   ```
-
-6. **Deploy**
-
-## 🔄 GitHub Actions CI/CD
-
-The repository includes automated CI/CD via GitHub Actions.
-
-### Pipeline Overview
-
-```
-Push to main → Lint → Build Docker → Deploy to Render
-```
-
-### Setup Auto-Deploy
-
-1. **Get Render Deploy Hook**
-
-   - Go to Render Dashboard → Your Service → Settings
-   - Scroll to **Deploy Hook**
-   - Copy the URL
-
-2. **Add GitHub Secret**
-
-   - Go to your GitHub repo → Settings → Secrets and variables → Actions
-   - Click **New repository secret**
-   - Name: `RENDER_DEPLOY_HOOK_URL`
-   - Value: (paste the Deploy Hook URL)
-
-3. **Trigger Deployment**
-   - Push to `main` branch
-   - GitHub Actions will:
-     1. Lint code
-     2. Build Docker image
-     3. Trigger Render deployment
-
-### Manual Workflow Trigger
-
-You can also trigger deployment manually:
-
-1. Go to Actions tab in GitHub
-2. Select "CI/CD Pipeline"
-3. Click "Run workflow"
-
-## 📁 Configuration Files
-
-### render.yaml
-
-```yaml
-services:
-  - type: web
-    name: emailcraft-ai
-    runtime: docker
-    region: oregon
-    plan: free
-    dockerfilePath: ./Dockerfile
-    envVars:
-      - key: GROQ_API_KEY
-        sync: false # Set manually
-      - key: GROQ_MODEL
-        value: llama-3.1-8b-instant
-    healthCheckPath: /health
-    autoDeploy: true
-```
-
-### Dockerfile
+### Dockerfile Overview
 
 ```dockerfile
 FROM python:3.11-slim
@@ -268,15 +323,93 @@ EXPOSE 10000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
 ```
 
-## 🔍 Health Check
+---
 
-The app includes a health check endpoint:
+## 🔄 CI/CD Pipeline
 
-```bash
-curl https://your-app.onrender.com/health
+### GitHub Actions
+
+The repository includes `.github/workflows/ci-cd.yml`:
+
+```yaml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Trigger Render Deploy
+        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
 ```
 
-Response:
+### Setup
+
+1. In Render → Service → **Settings** → Copy **Deploy Hook URL**
+2. In GitHub → Repo → **Settings** → **Secrets** → Add:
+   - Name: `RENDER_DEPLOY_HOOK_URL`
+   - Value: (paste hook URL)
+
+---
+
+## ⚠️ Rate Limiting
+
+### Groq Free Tier
+
+- **Limit**: 30 requests/minute
+- **Per email**: 4-5 LLM calls
+- **Solution**: 30-second delay between batch emails
+
+### Batch Processing
+
+| Environment | Delay      | Detection              |
+| ----------- | ---------- | ---------------------- |
+| Local       | 2 seconds  | No `PINECONE_API_KEY`  |
+| Production  | 30 seconds | `PINECONE_API_KEY` set |
+
+### Expected Times
+
+| Emails | Production Time |
+| ------ | --------------- |
+| 10     | ~8-10 minutes   |
+| 20     | ~15-18 minutes  |
+| 50     | ~35-45 minutes  |
+
+---
+
+## 🐛 Troubleshooting
+
+### Build Failures
+
+| Error                        | Solution                                   |
+| ---------------------------- | ------------------------------------------ |
+| `requirements.txt not found` | Ensure file is committed                   |
+| `ModuleNotFoundError`        | Check all dependencies in requirements.txt |
+| `Memory exceeded`            | Upgrade Render plan                        |
+
+### Runtime Errors
+
+| Error                    | Solution                                    |
+| ------------------------ | ------------------------------------------- |
+| `GROQ_API_KEY not found` | Set in Render environment                   |
+| `429 Too Many Requests`  | Wait for rate limit reset (1 min)           |
+| `502 Bad Gateway`        | Batch delay is working, wait for completion |
+| `Connection refused`     | Check DATABASE_URL format                   |
+
+### Health Check
+
+Test your deployment:
+
+```bash
+curl https://emailcraft-ai.onrender.com/health
+```
+
+Expected response:
 
 ```json
 {
@@ -285,80 +418,49 @@ Response:
 }
 ```
 
-## ⚠️ Important Notes
-
-### Free Tier Limitations
-
-Render free tier:
-
-- Spins down after 15 minutes of inactivity
-- Cold start takes ~30-60 seconds
-- 750 hours/month limit
-
-### Production Recommendations
-
-1. **Upgrade Plan**: For production use, upgrade to paid tier for always-on service
-2. **Custom Domain**: Add your own domain in Render settings
-3. **CORS**: Update `main.py` to restrict origins
-4. **Rate Limiting**: Consider adding rate limiting for API endpoints
-
-### Environment Variables
-
-| Variable               | Required | Default                | Description        |
-| ---------------------- | -------- | ---------------------- | ------------------ |
-| `GROQ_API_KEY`         | Yes      | -                      | Your Groq API key  |
-| `GROQ_MODEL`           | No       | `llama-3.1-8b-instant` | Groq model to use  |
-| `ANONYMIZED_TELEMETRY` | No       | `False`                | ChromaDB telemetry |
-
-## 🐛 Troubleshooting
-
-### Build Failures
-
-- Check Render logs for specific errors
-- Ensure all files are committed to Git
-- Verify `requirements.txt` is up to date
-
-### App Not Loading
-
-- Check if service is deployed (green status)
-- Wait for cold start if using free tier
-- Check health endpoint: `/health`
-
-### API Errors
-
-- Verify `GROQ_API_KEY` is set correctly
-- Check Groq API quota at [console.groq.com](https://console.groq.com)
-
-### ChromaDB Issues
-
-- The vector store is created fresh on each deploy
-- Data persists within the container but resets on redeploy
-- For persistent storage, consider upgrading to use Render disks
+---
 
 ## 📊 Monitoring
 
 ### Render Dashboard
 
-- View logs in real-time
-- Monitor CPU/memory usage
-- Check request metrics
+- **Logs**: Real-time application logs
+- **Metrics**: CPU, memory, requests
+- **Events**: Deploy history
 
-### Logs
+### Log Messages
 
-Access logs via:
-
-```bash
-# In Render dashboard
-Logs tab → Select your service
 ```
+✅ Using PostgreSQL database (Supabase)
+✅ Pinecone index 'email-templates' initialized
+✅ System ready - first request will be fast!
+⏳ Waiting 30s before next email...
+```
+
+---
 
 ## 🔐 Security Checklist
 
-- [ ] `GROQ_API_KEY` set as environment variable (not in code)
+- [ ] `GROQ_API_KEY` in Render environment (not in code)
+- [ ] `DATABASE_URL` in Render environment
+- [ ] `PINECONE_API_KEY` in Render environment
+- [ ] `.env` in `.gitignore`
 - [ ] CORS configured for production domain
-- [ ] `.env` file not committed to Git
 - [ ] Health check endpoint accessible
 
 ---
 
-**Need help?** Open an issue on GitHub.
+## 🆘 Support
+
+- **Issues**: Open a GitHub issue
+- **Render Docs**: [docs.render.com](https://docs.render.com)
+- **Groq Docs**: [console.groq.com/docs](https://console.groq.com/docs)
+- **Pinecone Docs**: [docs.pinecone.io](https://docs.pinecone.io)
+
+---
+
+<div align="center">
+
+**Ready to deploy? Let's go! 🚀**
+
+</div>
