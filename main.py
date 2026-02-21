@@ -67,23 +67,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize planner agent
-planner = PlannerAgent()
-lead_sourcing = LeadSourcingAgent()
+# Initialize agents lazily (don't connect to DB at import time)
+planner = None
+lead_sourcing = None
+
+
+def get_planner():
+    """Get or create planner agent instance."""
+    global planner
+    if planner is None:
+        planner = PlannerAgent()
+    return planner
+
+
+def get_lead_sourcing():
+    """Get or create lead sourcing agent instance."""
+    global lead_sourcing
+    if lead_sourcing is None:
+        lead_sourcing = LeadSourcingAgent()
+    return lead_sourcing
 
 
 @app.on_event("startup")
 async def startup_event():
     """Warm up the system on startup for faster first requests."""
-    logger.info("🚀 Starting Cold Outreach AI Agent...")
-    try:
-        # Warm up LLM connection
-        from utils.groq_client import GroqClient
-        client = GroqClient()
-        client.warm_up()
-        logger.info("✅ System ready - first request will be fast!")
-    except Exception as e:
-        logger.warning(f"Warm-up skipped: {e}")
+    logger.info("🚀 Starting EmailCraft AI...")
+    logger.info("✅ Server ready - agents will initialize on first request")
 
 
 class EmailRequest(BaseModel):
@@ -254,7 +263,7 @@ async def generate_email(request: EmailRequest):
         
         # Execute agent pipeline
         logger.info(f"Processing request for: {request.role or 'job URL'}")
-        result = planner.execute_with_metadata(agent_request)
+        result = get_planner().execute_with_metadata(agent_request)
         
         # Sanitize result to remove inf/nan values and return with SafeJSONResponse
         sanitized_result = sanitize_floats(result)
@@ -321,7 +330,7 @@ async def generate_from_leads(request: LeadGenerationRequest):
         logger.info(f"🚀 Lead generation started: {request.business_type} in {request.location}")
         
         # Step 1: Generate leads
-        leads = lead_sourcing.generate_leads(
+        leads = get_lead_sourcing().generate_leads(
             business_type=request.business_type,
             location=request.location,
             max_results=request.max_results,
@@ -357,7 +366,7 @@ async def generate_from_leads(request: LeadGenerationRequest):
                 )
                 
                 # Generate email
-                result = planner.execute_with_metadata(agent_request)
+                result = get_planner().execute_with_metadata(agent_request)
                 
                 # Sanitize and format
                 sanitized_result = sanitize_floats(result)
@@ -444,7 +453,7 @@ async def generate_email_legacy(request: EmailRequest):
         )
         
         logger.info(f"Processing request (legacy) for: {request.role or 'job URL'}")
-        result = planner.execute_with_metadata(agent_request)
+        result = get_planner().execute_with_metadata(agent_request)
         sanitized_result = sanitize_floats(result)
         
         return SafeJSONResponse(content={
