@@ -485,9 +485,19 @@ if FRONTEND_DIR.exists():
     
     @app.get("/{filename:path}")
     async def serve_static_files(filename: str):
-        """Serve static files (CSS, JS, etc.)."""
+        """Serve static files (CSS, JS, etc.) with no-cache headers."""
         file_path = FRONTEND_DIR / filename
         if file_path.exists() and file_path.is_file():
+            # Add no-cache headers for JS/CSS files to prevent caching issues
+            if filename.endswith(('.js', '.css')):
+                return FileResponse(
+                    str(file_path),
+                    headers={
+                        "Cache-Control": "no-cache, no-store, must-revalidate",
+                        "Pragma": "no-cache",
+                        "Expires": "0"
+                    }
+                )
             return FileResponse(str(file_path))
         # Return landing page for unknown routes
         return FileResponse(str(FRONTEND_DIR / "landing.html"))
