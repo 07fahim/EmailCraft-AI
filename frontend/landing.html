@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmailCraft AI - AI-Powered Cold Outreach Emails</title>
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="landing.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <i class="fas fa-envelope-open-text"></i>
+                <span>EmailCraft AI</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#faq">FAQ</a></li>
+                <li><a href="/app" class="cta-btn">Launch App</a></li>
+                <li><button id="theme-toggle" class="theme-toggle" title="Toggle Dark Mode">
+                    <i class="fas fa-moon"></i>
+                </button></li>
+            </ul>
+            <div class="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1 class="hero-title">
+                    <span class="gradient-text">AI-Powered</span> Cold Outreach Emails
+                </h1>
+                <p class="hero-subtitle">Generate high-conversion B2B emails in seconds. Personalized, scored, and optimized by our multi-agent AI system.</p>
+                <div class="hero-buttons">
+                    <a href="/app" class="btn btn-primary">
+                        <i class="fas fa-rocket"></i> Start Free
+                    </a>
+                    <a href="#demo" class="btn btn-secondary">
+                        <i class="fas fa-play"></i> Watch Demo
+                    </a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <span class="stat-number">10K+</span>
+                        <span class="stat-label">Emails Generated</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">5K+</span>
+                        <span class="stat-label">Leads Sourced</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">92%</span>
+                        <span class="stat-label">Avg Quality Score</span>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="floating-card card-1">
+                    <div class="card-header">
+                        <i class="fas fa-envelope"></i>
+                        <span>Email Generated</span>
+                    </div>
+                    <p>Subject: Revolutionize Your Sales Process...</p>
+                    <div class="score-badge">92/100</div>
+                </div>
+                <div class="floating-card card-2">
+                    <div class="card-header">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Performance</span>
+                    </div>
+                    <div class="mini-chart">
+                        <div class="bar" style="height: 60%"></div>
+                        <div class="bar" style="height: 75%"></div>
+                        <div class="bar" style="height: 85%"></div>
+                        <div class="bar" style="height: 70%"></div>
+                    </div>
+                </div>
+                <div class="floating-card card-3">
+                    <div class="card-header">
+                        <i class="fas fa-zap"></i>
+                        <span>Processing</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <span class="progress-text">Optimizing...</span>
+                </div>
+            </div>
+        </div>
+        <div class="hero-background">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+            <div class="gradient-orb orb-3"></div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="section-header">
+            <h2>Powerful Features</h2>
+            <p>Everything you need to generate high-quality cold outreach emails</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h3>Multi-Agent AI</h3>
+                <p>6 specialized AI agents work together to analyze, generate, and optimize your emails autonomously.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-map-marked-alt"></i>
+                </div>
+                <h3>Lead Generation</h3>
+                <p>Automatically scrape businesses from Google Maps, find decision-maker emails, and generate personalized outreach.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-link"></i>
+                </div>
+                <h3>Job URL Scraping</h3>
+                <p>Automatically extract role details, skills, and company info from LinkedIn and job postings.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-star"></i>
+                </div>
+                <h3>Quality Scoring</h3>
+                <p>5-metric evaluation system: Clarity, Tone, Length, Personalization, and Spam Risk.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-folder-open"></i>
+                </div>
+                <h3>Portfolio Matching</h3>
+                <p>RAG-powered portfolio recommendations that match your case studies to job requirements.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <h3>Batch Processing</h3>
+                <p>Generate 10-200+ emails from CSV files with automatic rate limiting and progress tracking.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <h3>Analytics Dashboard</h3>
+                <p>Track performance, scores, trends, and template effectiveness in real-time.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+        <div class="section-header">
+            <h2>How It Works</h2>
+            <p>Two powerful workflows for different use cases</p>
+        </div>
+        
+        <div class="workflows-container">
+            <!-- Single Email Workflow -->
+            <div class="workflow-section">
+                <div class="workflow-header">
+                    <div class="workflow-icon">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <h3 class="workflow-title">Single Email Generation</h3>
+                    <p class="workflow-desc">Perfect for targeted outreach to specific job postings</p>
+                </div>
+                <div class="pipeline">
+                    <div class="pipeline-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>Input</h4>
+                            <p>Provide job URL or role + industry</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="pipeline-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>Scrape</h4>
+                            <p>Extract role details & skills</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="pipeline-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>Analyze</h4>
+                            <p>Profile recipient persona</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="pipeline-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h4>Retrieve</h4>
+                            <p>Find templates & portfolio</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="pipeline-step">
+                        <div class="step-number">5</div>
+                        <div class="step-content">
+                            <h4>Generate</h4>
+                            <p>Create personalized email</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="pipeline-step">
+                        <div class="step-number">6</div>
+                        <div class="step-content">
+                            <h4>Optimize</h4>
+                            <p>Score & auto-improve</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lead Generation Workflow -->
+            <div class="workflow-section">
+                <div class="workflow-header">
+                    <div class="workflow-icon">
+                        <i class="fas fa-map-marked-alt"></i>
+                    </div>
+                    <h3 class="workflow-title">Lead Generation</h3>
+                    <p class="workflow-desc">Automated prospecting from Google Maps to personalized emails</p>
+                </div>
+                <div class="pipeline pipeline-compact">
+                    <div class="pipeline-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>Search</h4>
+                            <p>Scrape Google Maps for businesses</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="pipeline-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>Find Emails</h4>
+                            <p>Discover decision-maker contacts</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="pipeline-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>Generate</h4>
+                            <p>Create personalized emails</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="pipeline-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h4>Export</h4>
+                            <p>Download all results to Excel</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats-section">
+        <div class="stats-container">
+            <div class="stat-item">
+                <div class="stat-icon">
+                    <i class="fas fa-envelope"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>10,000+</h3>
+                    <p>Emails Generated</p>
+                </div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>500+</h3>
+                    <p>Active Users</p>
+                </div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>92%</h3>
+                    <p>Avg Quality Score</p>
+                </div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>&lt;30s</h3>
+                    <p>Generation Time</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="pricing">
+        <div class="section-header">
+            <h2>Simple Pricing</h2>
+            <p>Choose the plan that fits your needs</p>
+        </div>
+        <div class="pricing-grid">
+            <div class="pricing-card">
+                <h3>Starter</h3>
+                <div class="price">Free</div>
+                <p class="price-desc">Perfect for trying it out</p>
+                <ul class="features-list">
+                    <li><i class="fas fa-check"></i> 5 emails/month</li>
+                    <li><i class="fas fa-check"></i> Basic quality scoring</li>
+                    <li><i class="fas fa-check"></i> Email history</li>
+                    <li><i class="fas fa-times"></i> Batch processing</li>
+                    <li><i class="fas fa-times"></i> Analytics dashboard</li>
+                </ul>
+                <button class="btn btn-secondary">Get Started</button>
+            </div>
+            <div class="pricing-card featured">
+                <div class="badge">Most Popular</div>
+                <h3>Professional</h3>
+                <div class="price">$29<span>/month</span></div>
+                <p class="price-desc">For serious outreach</p>
+                <ul class="features-list">
+                    <li><i class="fas fa-check"></i> 500 emails/month</li>
+                    <li><i class="fas fa-check"></i> Advanced quality scoring</li>
+                    <li><i class="fas fa-check"></i> Batch processing</li>
+                    <li><i class="fas fa-check"></i> Analytics dashboard</li>
+                    <li><i class="fas fa-check"></i> Portfolio matching</li>
+                </ul>
+                <button class="btn btn-primary">Start Free Trial</button>
+            </div>
+            <div class="pricing-card">
+                <h3>Enterprise</h3>
+                <div class="price">Custom</div>
+                <p class="price-desc">For large teams</p>
+                <ul class="features-list">
+                    <li><i class="fas fa-check"></i> Unlimited emails</li>
+                    <li><i class="fas fa-check"></i> Team collaboration</li>
+                    <li><i class="fas fa-check"></i> API access</li>
+                    <li><i class="fas fa-check"></i> Priority support</li>
+                    <li><i class="fas fa-check"></i> Custom integrations</li>
+                </ul>
+                <button class="btn btn-secondary">Contact Sales</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq" class="faq">
+        <div class="section-header">
+            <h2>Frequently Asked Questions</h2>
+            <p>Everything you need to know about EmailCraft AI</p>
+        </div>
+        <div class="faq-container">
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>How does the AI generate personalized emails?</h3>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    <p>Our system uses 6 specialized AI agents that work together. It analyzes the job posting, profiles the recipient's persona, retrieves relevant templates and portfolio items, generates a personalized email, and then evaluates and optimizes it for maximum impact.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Can I use my own email templates?</h3>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    <p>Yes! You can upload your own templates to the system. Our RAG-powered retrieval system will learn from them and use them as references for generating new emails.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>How long does it take to generate an email?</h3>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    <p>Most emails are generated in under 30 seconds. For batch processing, we apply intelligent rate limiting to avoid API limits. Expect about 30 seconds per email in production mode.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>What's the quality scoring system?</h3>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    <p>We evaluate emails on 5 metrics: Clarity (is it easy to understand?), Tone (is it professional?), Length (is it concise?), Personalization (is it tailored?), and Spam Risk (will it get filtered?). Each metric is scored 0-10.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>How does lead generation work?</h3>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    <p>Our lead generation feature scrapes businesses from Google Maps based on your criteria (e.g., "software companies in San Francisco") and automatically generates personalized cold emails for each lead. Export all results to Excel with one click. You can add contact emails manually or use external email finder tools.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Can I process emails in bulk?</h3>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    <p>Absolutely! Upload a CSV file with job URLs or role/industry combinations, and our system will generate emails for all of them. You can process 10-200+ emails at once and export results to Excel.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Is my data secure?</h3>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    <p>Yes, we take security seriously. All data is encrypted in transit and at rest. We use industry-standard security practices and never share your data with third parties.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="cta-content">
+            <h2>Ready to Transform Your Outreach?</h2>
+            <p>Start generating high-quality cold emails in seconds</p>
+            <a href="/app" class="btn btn-primary btn-large">
+                <i class="fas fa-rocket"></i> Launch App Now
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>EmailCraft AI</h4>
+                <p>AI-powered cold outreach emails that convert.</p>
+            </div>
+            <div class="footer-section">
+                <h4>Product</h4>
+                <ul>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#pricing">Pricing</a></li>
+                    <li><a href="#faq">FAQ</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="#">About</a></li>
+                    <li><a href="#">Blog</a></li>
+                    <li><a href="#">Contact</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="#">Privacy</a></li>
+                    <li><a href="#">Terms</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 EmailCraft AI. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="landing.js"></script>
+</body>
+</html>

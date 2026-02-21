@@ -17,6 +17,7 @@ from typing import Optional, Any
 
 from models.schemas import AgentRequest
 from agents.planner_agent import PlannerAgent
+from agents.lead_sourcing_agent import LeadSourcingAgent
 from database.db_manager import get_db
 
 
@@ -68,6 +69,7 @@ app.add_middleware(
 
 # Initialize planner agent
 planner = PlannerAgent()
+lead_sourcing = LeadSourcingAgent()
 
 
 @app.on_event("startup")
@@ -95,6 +97,18 @@ class EmailRequest(BaseModel):
     sender_name: Optional[str] = Field(default="Alex", description="Your name for email signature")
     sender_company: Optional[str] = Field(default="TechSolutions Inc.", description="Your company name")
     sender_services: Optional[str] = Field(default="software development and consulting services", description="Your services")
+
+
+class LeadGenerationRequest(BaseModel):
+    """Request model for lead generation."""
+    business_type: str = Field(..., description="Type of business to search (e.g., 'software companies', 'restaurants')")
+    location: str = Field(..., description="Location to search (e.g., 'New York, NY', 'San Francisco')")
+    max_results: int = Field(default=20, description="Maximum number of leads to generate")
+    find_emails: bool = Field(default=True, description="Whether to find decision-maker emails")
+    sender_name: str = Field(default="Alex", description="Your name for email signature")
+    sender_company: str = Field(default="TechSolutions Inc.", description="Your company name")
+    sender_services: str = Field(default="software development and consulting services", description="Your services")
+    tone: str = Field(default="professional", description="Email tone")
 
 
 class EmailResponse(BaseModel):
@@ -292,6 +306,119 @@ async def generate_email(request: EmailRequest):
         )
 
 
+@app.post("/generate-from-leads")
+async def generate_from_leads(request: LeadGenerationRequest):
+    """
+    Generate emails from lead sourcing (Google Maps + Email Discovery).
+    
+    Workflow:
+    1. Scrape businesses from Google Maps
+    2. Find decision-maker emails
+    3. Generate personalized emails for each lead
+    4. Return batch results
+    """
+    try:
+        logger.info(f"🚀 Lead generation started: {request.business_type} in {request.location}")
+        
+        # Step 1: Generate leads
+        leads = lead_sourcing.generate_leads(
+            business_type=request.business_type,
+            location=request.location,
+            max_results=request.max_results,
+            find_emails=request.find_emails
+        )
+        
+        if not leads:
+            raise HTTPException(
+                status_code=404,
+                detail="No leads found. Check your search criteria or API configuration."
+            )
+        
+        logger.info(f"✅ Found {len(leads)} leads")
+        
+        # Step 2: Generate emails for each lead
+        results = []
+        for idx, lead in enumerate(leads):
+            try:
+                logger.info(f"📧 Generating email {idx + 1}/{len(leads)} for {lead.company_name}")
+                
+                # Create agent request
+                # For lead generation, use sender's services as "role" since we're offering services
+                # not applying for a job. This helps portfolio matching work correctly.
+                agent_request = AgentRequest(
+                    role=request.sender_services,  # What we offer (e.g., "software development")
+                    industry=lead.category or "Business",
+                    tone=request.tone,
+                    company_name=lead.company_name,
+                    recipient_name=lead.decision_maker_name,
+                    sender_name=request.sender_name,
+                    sender_company=request.sender_company,
+                    sender_services=request.sender_services
+                )
+                
+                # Generate email
+                result = planner.execute_with_metadata(agent_request)
+                
+                # Sanitize and format
+                sanitized_result = sanitize_floats(result)
+                final_email = sanitized_result.get("final_email", {})
+                evaluation_details = sanitized_result.get("evaluation_details", {})
+                
+                results.append({
+                    "lead": lead.to_dict(),
+                    "email": {
+                        "subject_line": final_email.get("subject_line", ""),
+                        "body": final_email.get("body", ""),
+                        "cta": final_email.get("cta", "")
+                    },
+                    "quality_score": sanitized_result.get("final_score", 0),
+                    # Add detailed metrics (same as batch email)
+                    "clarity_score": evaluation_details.get("clarity_score", 0),
+                    "tone_score": evaluation_details.get("tone_alignment_score", 0),
+                    "length_score": evaluation_details.get("length_score", 0),
+                    "personalization_score": evaluation_details.get("personalization_score", 0),
+                    "spam_risk_score": evaluation_details.get("spam_risk_score", 5),
+                    "strengths": evaluation_details.get("strengths", []),
+                    "issues": evaluation_details.get("issues", []),
+                    "portfolio_items": sanitized_result.get("portfolio_items_used", []),
+                    "alt_subjects": sanitized_result.get("alternative_subject_lines", []),
+                    "status": "success"
+                })
+                
+                logger.info(f"✅ Email generated for {lead.company_name} (Score: {sanitized_result.get('final_score', 0)})")
+                
+            except Exception as e:
+                logger.error(f"❌ Error generating email for {lead.company_name}: {e}")
+                results.append({
+                    "lead": lead.to_dict(),
+                    "email": None,
+                    "quality_score": 0,
+                    "status": f"failed: {str(e)}"
+                })
+        
+        # Calculate stats
+        successful = sum(1 for r in results if r["status"] == "success")
+        avg_score = sum(r["quality_score"] for r in results if r["status"] == "success") / successful if successful > 0 else 0
+        
+        return SafeJSONResponse(content={
+            "success": True,
+            "total_leads": len(leads),
+            "successful_emails": successful,
+            "failed_emails": len(leads) - successful,
+            "average_score": round(avg_score, 2),
+            "results": results
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in lead generation: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error in lead generation: {str(e)}"
+        )
+
+
 # Keep old endpoint for Streamlit compatibility
 @app.post("/generate-email")
 async def generate_email_legacy(request: EmailRequest):
@@ -338,8 +465,13 @@ FRONTEND_DIR = Path(__file__).parent / "frontend"
 
 if FRONTEND_DIR.exists():
     @app.get("/")
-    async def serve_frontend():
-        """Serve the main frontend page."""
+    async def serve_landing():
+        """Serve the landing page."""
+        return FileResponse(str(FRONTEND_DIR / "landing.html"))
+    
+    @app.get("/app")
+    async def serve_app():
+        """Serve the main app page."""
         return FileResponse(str(FRONTEND_DIR / "index.html"))
     
     @app.get("/{filename:path}")
@@ -348,8 +480,8 @@ if FRONTEND_DIR.exists():
         file_path = FRONTEND_DIR / filename
         if file_path.exists() and file_path.is_file():
             return FileResponse(str(file_path))
-        # Return index.html for SPA routing
-        return FileResponse(str(FRONTEND_DIR / "index.html"))
+        # Return landing page for unknown routes
+        return FileResponse(str(FRONTEND_DIR / "landing.html"))
 
 
 if __name__ == "__main__":

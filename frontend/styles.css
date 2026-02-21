@@ -1,9 +1,9 @@
 /* ============================================
    Cold Email AI - Professional Styles
-   Theme: Purple #744B93 + White
+   Theme: Light & Dark Mode Support
    ============================================ */
 
-:root {
+:root[data-theme="light"] {
     --primary: #744B93;
     --primary-dark: #5a3a73;
     --primary-light: #9066ad;
@@ -35,6 +35,38 @@
     --transition: all 0.3s ease;
 }
 
+:root[data-theme="dark"] {
+    --primary: #a78bfa;
+    --primary-dark: #9370db;
+    --primary-light: #c4b5fd;
+    --primary-bg: #1f1f3f;
+    --white: #0f172a;
+    --gray-50: #1e293b;
+    --gray-100: #334155;
+    --gray-200: #475569;
+    --gray-300: #64748b;
+    --gray-400: #94a3b8;
+    --gray-500: #cbd5e1;
+    --gray-600: #e2e8f0;
+    --gray-700: #f1f5f9;
+    --gray-800: #f8fafc;
+    --gray-900: #ffffff;
+    --success: #10b981;
+    --success-light: #064e3b;
+    --warning: #f59e0b;
+    --warning-light: #78350f;
+    --error: #ef4444;
+    --error-light: #7f1d1d;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 16px;
+    --transition: all 0.3s ease;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -47,6 +79,7 @@ body {
     color: var(--gray-800);
     line-height: 1.6;
     min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ============================================
@@ -108,6 +141,27 @@ body {
     border-bottom-color: var(--primary);
 }
 
+.theme-toggle {
+    background: none;
+    border: none;
+    color: var(--gray-500);
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: var(--transition);
+    padding: 0.5rem;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 1rem;
+}
+
+.theme-toggle:hover {
+    color: var(--primary);
+    background: var(--primary-bg);
+    transform: rotate(20deg);
+}
+
 .header {
     display: flex;
     justify-content: space-between;
@@ -135,7 +189,7 @@ body {
 .page-header h1 {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--gray-900);
+    color: var(--gray-800);
     margin-bottom: 0.5rem;
 }
 
@@ -237,6 +291,16 @@ body {
     border-radius: var(--radius-sm);
     transition: var(--transition);
     font-family: inherit;
+    background: var(--white);
+    color: var(--gray-800);
+}
+
+[data-theme="dark"] .form-group input,
+[data-theme="dark"] .form-group select,
+[data-theme="dark"] .form-group textarea {
+    background: var(--gray-100);
+    color: var(--gray-900);
+    border-color: var(--gray-200);
 }
 
 .form-group input:focus,
@@ -1426,7 +1490,14 @@ body {
     border-radius: var(--radius-sm);
     font-size: 1rem;
     background: var(--white);
+    color: var(--gray-800);
     cursor: pointer;
+}
+
+[data-theme="dark"] .history-filters select {
+    background: var(--gray-100);
+    color: var(--gray-900);
+    border-color: var(--gray-200);
 }
 
 .history-list {
@@ -1547,7 +1618,7 @@ body {
 .stat-value {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--gray-900);
+    color: var(--gray-800);
     line-height: 1;
 }
 
@@ -1967,3 +2038,77 @@ body {
     gap: 0.5rem;
     flex-wrap: wrap;
 }
+
+/* ============================================
+   Lead Preview Empty State - How It Works
+   ============================================ */
+
+.info-steps {
+    text-align: left;
+    max-width: 450px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.info-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
+}
+
+.info-step:hover {
+    background: var(--primary-bg);
+    transform: translateX(5px);
+}
+
+.info-step:last-child {
+    margin-bottom: 0;
+}
+
+.step-icon {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 6px rgba(116, 75, 147, 0.2);
+    position: relative;
+}
+
+.step-icon i {
+    font-size: 20px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.step-content {
+    flex: 1;
+    padding-top: 2px;
+}
+
+.step-content h4 {
+    margin: 0 0 0.35rem 0;
+    font-size: 1rem;
+    color: var(--gray-800);
+    font-weight: 600;
+}
+
+.step-content p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--gray-500);
+    line-height: 1.5;
+}
+

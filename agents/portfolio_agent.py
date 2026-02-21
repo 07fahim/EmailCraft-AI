@@ -157,7 +157,8 @@ class PortfolioRetrievalAgent:
                     for skill in tech_skills:
                         # Split by common delimiters and add each keyword
                         for word in skill.lower().replace(',', ' ').replace('/', ' ').split():
-                            if len(word) > 2 and word not in EXCLUDE_KEYWORDS:
+                            # Allow 2-letter keywords for important tech terms (AI, ML, CI, CD, UI, UX, etc.)
+                            if len(word) > 1 and word not in EXCLUDE_KEYWORDS:
                                 filter_keywords.add(word)
             
             if scraped_job_data.keywords:
@@ -168,7 +169,8 @@ class PortfolioRetrievalAgent:
                     query_parts.append(" ".join(tech_keywords[:5]))
                     for kw in tech_keywords:
                         for word in kw.lower().replace(',', ' ').replace('/', ' ').split():
-                            if len(word) > 2 and word not in EXCLUDE_KEYWORDS:
+                            # Allow 2-letter keywords for important tech terms
+                            if len(word) > 1 and word not in EXCLUDE_KEYWORDS:
                                 filter_keywords.add(word)
             
             # Use responsibilities but filter out benefits-related content
@@ -209,13 +211,16 @@ class PortfolioRetrievalAgent:
                         'software': ['python', 'java', 'javascript', 'react', 'node.js', 'sql', 'backend', 'frontend'],
                         'engineer': ['python', 'java', 'javascript', 'sql', 'docker', 'aws'],
                         'developer': ['python', 'java', 'javascript', 'react', 'node.js', 'sql'],
+                        'development': ['python', 'java', 'javascript', 'react', 'node.js', 'sql'],
                         'full stack': ['react', 'node.js', 'mongodb', 'javascript', 'typescript'],
                         'frontend': ['react', 'angular', 'vue', 'javascript', 'typescript', 'css'],
                         'backend': ['python', 'java', 'node.js', 'postgresql', 'mongodb', 'api'],
                         'data scientist': ['python', 'machine learning', 'tensorflow', 'pandas', 'sql'],
                         'data engineer': ['python', 'sql', 'spark', 'airflow', 'aws', 'etl'],
                         'data analyst': ['sql', 'excel', 'python', 'tableau', 'power bi'],
-                        'machine learning': ['python', 'tensorflow', 'pytorch', 'machine learning'],
+                        'machine learning': ['python', 'tensorflow', 'pytorch', 'machine learning', 'ai'],
+                        'ai': ['python', 'tensorflow', 'pytorch', 'machine learning', 'ai', 'deep learning'],
+                        'artificial intelligence': ['python', 'tensorflow', 'pytorch', 'machine learning', 'ai'],
                         'devops': ['docker', 'kubernetes', 'jenkins', 'aws', 'terraform', 'ci/cd'],
                         'mobile': ['react native', 'flutter', 'ios', 'android', 'swift', 'kotlin'],
                         'cloud': ['aws', 'azure', 'gcp', 'kubernetes', 'docker', 'terraform'],
@@ -285,10 +290,122 @@ class PortfolioRetrievalAgent:
 
         if product:
             query_parts.append(product)
-            # Add role keywords
+            # Add product keywords (allow 2-letter terms like AI, ML, UI, UX)
             for word in product.lower().replace(',', ' ').replace('/', ' ').split():
-                if len(word) > 2:
+                if len(word) > 1 and word not in EXCLUDE_KEYWORDS:
                     filter_keywords.add(word)
+            
+            # ALSO check product for role-based skill inference (for lead generation)
+            product_lower = product.lower()
+            
+            # Check if we have any REAL tech skills in filter_keywords
+            REAL_TECH_SKILLS = {
+                'python', 'java', 'javascript', 'react', 'node', 'angular', 'vue',
+                'typescript', 'sql', 'mongodb', 'postgresql', 'mysql', 'docker',
+                'kubernetes', 'aws', 'azure', 'gcp', 'spring', 'django', 'flask',
+                'tensorflow', 'pytorch', 'c++', 'c#', 'ruby', 'go', 'rust', 'php',
+                'html', 'css', 'graphql', 'redis', 'elasticsearch', 'kafka',
+                'git', 'linux', 'jenkins', 'terraform', 'ansible', 'ci/cd',
+                'figma', 'photoshop', 'salesforce', 'hubspot', 'excel', 'tableau',
+                'power bi', 'sap', 'oracle', 'workday', 'jira', 'confluence'
+            }
+            
+            has_real_skills = any(kw in REAL_TECH_SKILLS for kw in filter_keywords)
+            
+            # If no real skills, infer from product/role
+            if not has_real_skills:
+                logger.info(f"⚠️ No real tech skills in product '{product}'. Using role-based inference.")
+                
+                # COMPREHENSIVE role-to-skills mapping for ALL industries
+                # IMPORTANT: More specific roles FIRST, generic roles LAST
+                role_skill_map = {
+                    # Tech roles - SPECIFIC FIRST
+                    'ai': ['python', 'tensorflow', 'pytorch', 'machine', 'learning', 'ai', 'deep'],
+                    'artificial intelligence': ['python', 'tensorflow', 'pytorch', 'machine', 'learning', 'ai'],
+                    'machine learning': ['python', 'tensorflow', 'pytorch', 'machine', 'learning', 'ai'],
+                    'data scientist': ['python', 'machine', 'learning', 'tensorflow', 'pandas', 'sql'],
+                    'data engineer': ['python', 'sql', 'spark', 'airflow', 'aws', 'etl'],
+                    'data analyst': ['sql', 'excel', 'python', 'tableau', 'power', 'bi'],
+                    'mobile': ['react', 'native', 'flutter', 'ios', 'android', 'swift', 'kotlin'],
+                    'ios': ['ios', 'swift', 'swiftui', 'xcode', 'objective'],
+                    'android': ['android', 'kotlin', 'java', 'jetpack', 'firebase'],
+                    'flutter': ['flutter', 'dart', 'firebase', 'mobile'],
+                    'react native': ['react', 'native', 'javascript', 'expo', 'mobile'],
+                    'full stack': ['react', 'node', 'mongodb', 'javascript', 'typescript'],
+                    'frontend': ['react', 'angular', 'vue', 'javascript', 'typescript', 'css'],
+                    'backend': ['python', 'java', 'node', 'postgresql', 'mongodb', 'api'],
+                    'web': ['react', 'angular', 'vue', 'javascript', 'typescript', 'node'],
+                    'devops': ['docker', 'kubernetes', 'jenkins', 'aws', 'terraform', 'ci'],
+                    'cloud': ['aws', 'azure', 'gcp', 'kubernetes', 'docker', 'terraform'],
+                    # Tech roles - GENERIC LAST
+                    'software': ['python', 'java', 'javascript', 'react', 'node', 'sql', 'backend', 'frontend'],
+                    'engineer': ['python', 'java', 'javascript', 'sql', 'docker', 'aws'],
+                    'developer': ['python', 'java', 'javascript', 'react', 'node', 'sql'],
+                    'development': ['python', 'java', 'javascript', 'react', 'node', 'sql'],
+                    # Marketing roles
+                    'digital marketing': ['seo', 'ppc', 'google', 'ads', 'facebook', 'analytics'],
+                    'social media': ['social', 'media', 'instagram', 'tiktok', 'content', 'creation'],
+                    'seo': ['seo', 'google', 'analytics', 'content', 'marketing'],
+                    'content': ['content', 'writing', 'copywriting', 'seo', 'cms', 'wordpress'],
+                    'marketing': ['seo', 'google', 'analytics', 'hubspot', 'content', 'social', 'media'],
+                    # Sales roles
+                    'business development': ['lead', 'generation', 'crm', 'sales', 'partnerships'],
+                    'account': ['salesforce', 'account', 'management', 'crm', 'client', 'relations'],
+                    'sales': ['salesforce', 'crm', 'lead', 'generation', 'b2b', 'negotiation'],
+                    # Finance roles
+                    'financial': ['excel', 'financial', 'modeling', 'accounting', 'analysis'],
+                    'accountant': ['quickbooks', 'excel', 'gaap', 'tax', 'bookkeeping'],
+                    'analyst': ['excel', 'sql', 'financial', 'analysis', 'modeling', 'reporting'],
+                    'finance': ['excel', 'financial', 'modeling', 'accounting', 'quickbooks', 'sap'],
+                    # HR roles
+                    'human resources': ['workday', 'recruiting', 'ats', 'employee', 'hris'],
+                    'recruiter': ['linkedin', 'ats', 'sourcing', 'interviewing', 'hiring'],
+                    'talent': ['recruiting', 'talent', 'acquisition', 'ats', 'sourcing'],
+                    'hr': ['workday', 'recruiting', 'ats', 'employee', 'relations', 'hris'],
+                    # Design roles
+                    'ux': ['figma', 'user', 'research', 'wireframing', 'prototyping', 'usability'],
+                    'ui': ['figma', 'sketch', 'adobe', 'xd', 'interface', 'design'],
+                    'graphic': ['photoshop', 'illustrator', 'indesign', 'branding', 'design'],
+                    'design': ['figma', 'adobe', 'photoshop', 'ui', 'ux', 'design'],
+                    # Operations roles
+                    'project manager': ['project', 'management', 'agile', 'scrum', 'jira', 'pmp'],
+                    'product': ['product', 'management', 'agile', 'roadmap', 'user', 'stories', 'jira'],
+                    'supply chain': ['supply', 'chain', 'logistics', 'inventory', 'erp', 'procurement'],
+                    'operations': ['project', 'management', 'process', 'improvement', 'erp', 'logistics'],
+                    # Healthcare roles
+                    'healthcare': ['emr', 'hipaa', 'patient', 'care', 'clinical', 'medical'],
+                    'medical': ['medical', 'coding', 'emr', 'healthcare', 'clinical', 'patient'],
+                    'nurse': ['patient', 'care', 'emr', 'clinical', 'nursing', 'healthcare'],
+                    # Education roles
+                    'instructor': ['training', 'curriculum', 'lms', 'e-learning', 'instruction'],
+                    'teacher': ['curriculum', 'instruction', 'classroom', 'education', 'teaching'],
+                    'education': ['curriculum', 'instruction', 'teaching', 'education', 'learning'],
+                    # Customer service
+                    'customer': ['customer', 'service', 'crm', 'zendesk', 'support', 'communication'],
+                    'support': ['customer', 'support', 'ticketing', 'zendesk', 'troubleshooting'],
+                    # Legal
+                    'legal': ['legal', 'contract', 'review', 'research', 'compliance'],
+                    # Real Estate
+                    'real estate': ['real', 'estate', 'property', 'management', 'crm'],
+                    # Administrative
+                    'administrative': ['administrative', 'executive', 'support', 'office', 'management'],
+                    'admin': ['administrative', 'office', 'management', 'support', 'coordination'],
+                    # Quality Assurance
+                    'qa': ['quality', 'assurance', 'testing', 'automation', 'qa'],
+                    'quality': ['quality', 'assurance', 'testing', 'qa', 'automation'],
+                    # Consulting
+                    'consultant': ['consulting', 'strategy', 'business', 'analysis', 'advisory'],
+                    'consulting': ['consulting', 'strategy', 'business', 'analysis', 'advisory'],
+                }
+                
+                matched_role = False
+                for role_key, skills in role_skill_map.items():
+                    if role_key in product_lower:
+                        filter_keywords.update(skills[:5])
+                        query_parts.append(" ".join(skills[:5]))
+                        logger.info(f"📌 Inferred skills from product '{product}': {skills[:5]}")
+                        matched_role = True
+                        break
         if industry:
             query_parts.append(industry)
 
@@ -322,6 +439,7 @@ class PortfolioRetrievalAgent:
             'kubernetes', 'aws', 'azure', 'gcp', 'spring', 'django', 'flask',
             'tensorflow', 'pytorch', 'machine', 'learning', 'backend', 'frontend',
             'full-stack', 'fullstack', 'mobile', 'ios', 'android', 'kotlin', 'swift',
+            'ai', 'ml', 'deep', 'nlp', 'cv', 'computer', 'vision',  # AI/ML terms
             # Marketing
             'seo', 'analytics', 'hubspot', 'marketing', 'content', 'social',
             'advertising', 'ppc', 'campaigns', 'branding',
@@ -351,21 +469,29 @@ class PortfolioRetrievalAgent:
                     else 0.5
                 )
                 
-                # Check if portfolio item matches any filter keywords
+                # Check if portfolio item matches any filter keywords (WORD BOUNDARY MATCHING)
                 matches_keyword = False
                 matched_keywords = []
                 
                 if filter_keywords:
+                    # Tokenize techstack into words (split by spaces, commas, slashes, etc.)
+                    import re
+                    techstack_words = set(re.findall(r'\b\w+\b', techstack_lower))
+                    
                     for keyword in filter_keywords:
-                        if keyword in techstack_lower:
+                        # Check if keyword exists as a complete word in techstack
+                        # Also check if keyword is a substring for multi-word matches (e.g., "node.js" contains "node")
+                        if keyword in techstack_words or (len(keyword) > 2 and keyword in techstack_lower.replace(',', ' ').replace('.', ' ')):
                             matches_keyword = True
                             matched_keywords.append(keyword)
                     
                     # FALLBACK: If no keyword match but high similarity score, still include
                     if not matches_keyword and distance < 0.8:
-                        # Check if it matches any common skill keyword
+                        # Check if it matches any common skill keyword (WORD BOUNDARY)
+                        import re
+                        techstack_words = set(re.findall(r'\b\w+\b', techstack_lower))
                         for common_kw in COMMON_SKILL_KEYWORDS:
-                            if common_kw in techstack_lower:
+                            if common_kw in techstack_words:
                                 matches_keyword = True
                                 matched_keywords.append(f"~{common_kw}")  # Mark as fallback match
                                 break

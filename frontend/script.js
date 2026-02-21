@@ -1521,6 +1521,12 @@ function formatDate(dateStr) {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Theme is already initialized by theme.js
+    // Just ensure toggle buttons are set up
+    if (window.themeManager) {
+        window.themeManager.updateToggleButton();
+    }
+    
     // Check API health
     fetch(`${API_BASE}/health`)
         .then(res => res.json())
@@ -1532,3 +1538,457 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Backend not connected. Start the API server.', 'error');
         });
 });
+
+
+// ============================================
+// Lead Generation
+// ============================================
+
+let leadGenerationResults = [];
+
+document.getElementById('leadForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const businessType = document.getElementById('businessType').value;
+    const location = document.getElementById('location').value;
+    const maxLeads = parseInt(document.getElementById('maxLeads').value) || 20;
+    const findEmails = document.getElementById('findEmails').checked;
+    const senderName = document.getElementById('leadSenderName').value;
+    const senderCompany = document.getElementById('leadSenderCompany').value;
+    const senderServices = document.getElementById('leadSenderServices').value;
+    
+    // Show loading state in preview card
+    document.getElementById('leadPreviewEmptyState').style.display = 'none';
+    document.getElementById('leadPreviewResultState').style.display = 'none';
+    document.getElementById('leadPreviewLoadingState').style.display = 'block';
+    document.getElementById('leadScoreBadge').style.display = 'none';
+    
+    document.getElementById('leadResults').style.display = 'none';
+    document.getElementById('generateLeadsBtn').disabled = true;
+    
+    try {
+        const response = await fetch(`${API_BASE}/generate-from-leads`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                business_type: businessType,
+                location: location,
+                max_results: maxLeads,
+                find_emails: findEmails,
+                sender_name: senderName,
+                sender_company: senderCompany,
+                sender_services: senderServices,
+                tone: 'professional'
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Lead generation failed');
+        }
+        
+        const data = await response.json();
+        leadGenerationResults = data.results;
+        
+        // Display results
+        displayLeadResults(data);
+        
+        showToast('Lead generation complete!', 'success');
+        
+    } catch (error) {
+        console.error('Lead generation error:', error);
+        showToast(error.message || 'Lead generation failed', 'error');
+        // Reset preview card to empty state on error
+        document.getElementById('leadPreviewLoadingState').style.display = 'none';
+        document.getElementById('leadPreviewEmptyState').style.display = 'block';
+    } finally {
+        document.getElementById('generateLeadsBtn').disabled = false;
+    }
+});
+
+function displayLeadResults(data) {
+    // Update stats
+    document.getElementById('leadTotalCount').textContent = data.total_leads;
+    document.getElementById('leadSuccessCount').textContent = data.successful_emails;
+    document.getElementById('leadFailedCount').textContent = data.failed_emails;
+    document.getElementById('leadAvgScore').textContent = data.average_score.toFixed(1);
+    
+    // Store results globally for modal access
+    leadGenerationResults = data.results;
+    
+    // Show preview card with first successful email
+    showLeadPreview(0);
+    
+    // Populate table
+    const tbody = document.getElementById('leadResultsTableBody');
+    tbody.innerHTML = '';
+    
+    data.results.forEach((result, index) => {
+        const row = document.createElement('tr');
+        const lead = result.lead;
+        const email = result.email;
+        const status = result.status;
+        
+        // Status check (match batch email exactly)
+        const statusClass = status === 'success' ? 'success' : 'failed';
+        const scoreDisplay = status === 'success' ? result.quality_score.toFixed(1) : '-';
+        
+        // Truncate subject line (same as batch email)
+        const truncatedSubject = email && email.subject_line ? 
+            (email.subject_line.length > 35 ? email.subject_line.substring(0, 35) + '...' : email.subject_line) 
+            : '-';
+        
+        // Build metrics display (same as batch email)
+        const metricsHtml = status === 'success' ? `
+            <div class="metrics-mini">
+                <span title="Clarity">C:${(result.clarity_score || 0).toFixed(1)}</span>
+                <span title="Tone">T:${(result.tone_score || 0).toFixed(1)}</span>
+                <span title="Personal">P:${(result.personalization_score || 0).toFixed(1)}</span>
+                <span title="Length">L:${(result.length_score || 0).toFixed(1)}</span>
+                <span title="Spam Safe">S:${(10 - (result.spam_risk_score || 5)).toFixed(1)}</span>
+            </div>
+        ` : '-';
+        
+        // Remove click handler since we don't show individual previews anymore
+        row.style.cursor = 'default';
+        
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>
+                <strong>${lead.company_name}</strong>
+                ${lead.website ? `<br><small><a href="${lead.website}" target="_blank">${lead.website}</a></small>` : ''}
+                ${lead.email ? `<br><small><a href="mailto:${lead.email}">${lead.email}</a></small>` : ''}
+                ${lead.decision_maker_name ? `<br><small>${lead.decision_maker_name}</small>` : ''}
+            </td>
+            <td title="${email ? email.subject_line : ''}">${truncatedSubject}</td>
+            <td><span class="score-badge ${result.quality_score >= 7 ? 'good' : result.quality_score >= 5 ? 'ok' : 'low'}">${scoreDisplay}</span></td>
+            <td>${metricsHtml}</td>
+            <td><span class="status-badge ${statusClass}">${status}</span></td>
+            <td>
+                ${status === 'success' ? `
+                    <button class="btn-icon" onclick="event.stopPropagation(); viewLeadEmail(${index})" title="View Email">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-icon" onclick="event.stopPropagation(); copyLeadEmail(${index})" title="Copy">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                ` : '-'}
+            </td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+    
+    // Show results
+    document.getElementById('leadResults').style.display = 'block';
+}
+
+function showLeadPreview(index) {
+    // Hide empty/loading states, show result
+    document.getElementById('leadPreviewEmptyState').style.display = 'none';
+    document.getElementById('leadPreviewLoadingState').style.display = 'none';
+    document.getElementById('leadPreviewResultState').style.display = 'block';
+    
+    // Hide score badge (not needed for success message)
+    document.getElementById('leadScoreBadge').style.display = 'none';
+    
+    // Calculate stats
+    const totalLeads = leadGenerationResults.length;
+    const successfulLeads = leadGenerationResults.filter(r => r.status === 'success').length;
+    
+    // Update stats in success message
+    document.getElementById('leadPreviewTotal').textContent = totalLeads;
+    document.getElementById('leadPreviewSuccess').textContent = successfulLeads;
+}
+
+function viewLeadEmail(index) {
+    const result = leadGenerationResults[index];
+    if (!result || !result.email) return;
+    
+    const email = result.email;
+    const lead = result.lead;
+    
+    // Build strengths HTML (same as batch email)
+    const strengthsHtml = result.strengths && result.strengths.length > 0 ? `
+        <div class="modal-section strengths-section">
+            <h4><i class="fas fa-check-circle"></i> Strengths</h4>
+            <ul>${result.strengths.map(s => `<li>${s}</li>`).join('')}</ul>
+        </div>
+    ` : '';
+    
+    // Build issues HTML (same as batch email)
+    const issuesHtml = result.issues && result.issues.length > 0 ? `
+        <div class="modal-section issues-section">
+            <h4><i class="fas fa-exclamation-triangle"></i> Areas to Improve</h4>
+            <ul>${result.issues.map(i => `<li>${i}</li>`).join('')}</ul>
+        </div>
+    ` : '';
+    
+    // Build portfolio items HTML (same as batch email)
+    const portfolioHtml = result.portfolio_items && result.portfolio_items.length > 0 ? `
+        <div class="modal-section portfolio-section">
+            <h4><i class="fas fa-briefcase"></i> Portfolio Items Included</h4>
+            <div class="portfolio-list">
+                ${result.portfolio_items.map(p => `
+                    <div class="portfolio-item-mini">
+                        <strong>${p.title || 'Project'}</strong>
+                        <span class="tech-stack">${p.tech_stack || ''}</span>
+                        ${p.link ? `<a href="${p.link}" target="_blank"><i class="fas fa-external-link-alt"></i></a>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    ` : '';
+    
+    // Build alternative subjects HTML (same as batch email)
+    const altSubjectsHtml = result.alt_subjects && result.alt_subjects.length > 0 ? `
+        <div class="modal-section alt-subjects-section">
+            <h4><i class="fas fa-lightbulb"></i> Alternative Subject Lines</h4>
+            <ul class="alt-subjects-list">
+                ${result.alt_subjects.map(s => `<li>${s}</li>`).join('')}
+            </ul>
+        </div>
+    ` : '';
+    
+    // Create modal content with all metrics (same as batch email)
+    const modalHtml = `
+        <div class="batch-email-modal" id="leadEmailModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>${lead.company_name}</h3>
+                    <button onclick="closeLeadEmailModal()" class="close-btn"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Lead Info -->
+                    <div class="email-field" style="background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                            ${lead.website ? `<div><strong>Website:</strong> <a href="${lead.website}" target="_blank">${lead.website}</a></div>` : ''}
+                            ${lead.email ? `<div><strong>Email:</strong> <a href="mailto:${lead.email}">${lead.email}</a></div>` : ''}
+                            ${lead.decision_maker_name ? `<div><strong>Contact:</strong> ${lead.decision_maker_name}</div>` : ''}
+                            ${lead.decision_maker_title ? `<div><strong>Title:</strong> ${lead.decision_maker_title}</div>` : ''}
+                            ${lead.phone ? `<div><strong>Phone:</strong> ${lead.phone}</div>` : ''}
+                            ${lead.address ? `<div><strong>Address:</strong> ${lead.address}</div>` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- Email Content -->
+                    <div class="email-field">
+                        <label>Subject:</label>
+                        <p>${email.subject_line}</p>
+                    </div>
+                    <div class="email-field">
+                        <label>Body:</label>
+                        <p style="white-space: pre-wrap;">${email.body}</p>
+                    </div>
+                    <div class="email-field">
+                        <label>CTA:</label>
+                        <p>${email.cta}</p>
+                    </div>
+                    
+                    <!-- Evaluation Metrics -->
+                    <div class="modal-metrics">
+                        <h4>Evaluation Metrics</h4>
+                        <div class="metrics-grid">
+                            <div class="metric-item">
+                                <span class="metric-label">Overall Score</span>
+                                <span class="metric-value score">${result.quality_score.toFixed(1)}/10</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Clarity</span>
+                                <span class="metric-value">${(result.clarity_score || 0).toFixed(1)}</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Tone</span>
+                                <span class="metric-value">${(result.tone_score || 0).toFixed(1)}</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Length</span>
+                                <span class="metric-value">${(result.length_score || 0).toFixed(1)}</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Personalization</span>
+                                <span class="metric-value">${(result.personalization_score || 0).toFixed(1)}</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Spam Safe</span>
+                                <span class="metric-value">${(10 - (result.spam_risk_score || 5)).toFixed(1)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${strengthsHtml}
+                    ${issuesHtml}
+                    ${altSubjectsHtml}
+                    ${portfolioHtml}
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="copyLeadEmail(${index})">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                    <button class="btn btn-primary" onclick="downloadLeadEmailEml(${index})">
+                        <i class="fas fa-envelope"></i> Download .eml
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('leadEmailModal');
+    if (existingModal) existingModal.remove();
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeLeadEmailModal() {
+    const modal = document.getElementById('leadEmailModal');
+    if (modal) modal.remove();
+}
+
+function copyLeadEmail(index) {
+    const result = leadGenerationResults[index];
+    if (!result || !result.email) return;
+    
+    const email = result.email;
+    const emailText = `Subject: ${email.subject_line}\n\n${email.body}\n\n${email.cta}`;
+    
+    navigator.clipboard.writeText(emailText);
+    showToast('Email copied to clipboard!', 'success');
+}
+
+function downloadLeadEmailEml(index) {
+    const result = leadGenerationResults[index];
+    if (!result || !result.email) return;
+    
+    const email = result.email;
+    const lead = result.lead;
+    const senderName = document.getElementById('leadSenderName').value || 'Alex';
+    const senderEmail = 'sender@example.com'; // Placeholder
+    
+    const emlContent = `MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+From: ${senderName} <${senderEmail}>
+To: ${lead.decision_maker_name || 'Contact'} <${lead.email || 'contact@' + lead.company_name.toLowerCase().replace(/\s+/g, '') + '.com'}>
+Subject: ${email.subject_line}
+Date: ${new Date().toUTCString()}
+
+${email.body}
+
+${email.cta}
+`;
+    
+    const blob = new Blob([emlContent], { type: 'message/rfc822' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lead-email-${lead.company_name.replace(/\s+/g, '-')}.eml`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('Email downloaded as .eml file!', 'success');
+}
+
+function resetLeadGeneration() {
+    document.getElementById('leadResults').style.display = 'none';
+    document.getElementById('leadForm').reset();
+    leadGenerationResults = [];
+    
+    // Reset preview card to empty state
+    document.getElementById('leadPreviewResultState').style.display = 'none';
+    document.getElementById('leadPreviewLoadingState').style.display = 'none';
+    document.getElementById('leadPreviewEmptyState').style.display = 'block';
+    document.getElementById('leadScoreBadge').style.display = 'none';
+}
+
+function downloadLeadResultsExcel() {
+    if (leadGenerationResults.length === 0) {
+        showToast('No results to download', 'error');
+        return;
+    }
+    
+    console.log('Downloading results:', leadGenerationResults.length, 'items');
+    console.log('Sample result:', leadGenerationResults[0]);
+    
+    // Comprehensive headers including all lead and email data
+    const headers = [
+        '#', 'Status', 'Company Name', 'Website', 'Phone', 'Address', 
+        'Category', 'Rating', 'Reviews', 'Email', 'Contact Name', 'Contact Title',
+        'Subject Line', 'Email Body', 'CTA', 
+        'Quality Score', 'Clarity', 'Tone', 'Length', 'Personalization', 'Spam Risk',
+        'Strengths', 'Issues', 'Alternative Subjects', 'Portfolio Items'
+    ];
+    
+    const rows = leadGenerationResults.map((result, index) => {
+        const lead = result.lead || {};
+        const email = result.email || {};
+        
+        // Format arrays as readable text
+        const strengths = (result.strengths || []).join('; ');
+        const issues = (result.issues || []).join('; ');
+        const altSubjects = (result.alt_subjects || []).join('; ');
+        const portfolioItems = (result.portfolio_items || [])
+            .map(p => `${p.title || 'Untitled'} (${p.tech_stack || 'N/A'})`)
+            .join('; ');
+        
+        // Clean email body - replace newlines with spaces to prevent CSV row breaks
+        const cleanBody = (email.body || '').replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+        
+        return [
+            index + 1,
+            result.status || 'unknown',
+            lead.company_name || '',
+            lead.website || '',
+            lead.phone || '',
+            lead.address || '',
+            lead.category || '',
+            lead.rating || '',
+            lead.reviews_count || '',
+            lead.email || '',
+            lead.decision_maker_name || '',
+            lead.decision_maker_title || '',
+            email.subject_line || '',
+            cleanBody,
+            email.cta || '',
+            result.status === 'success' ? (result.quality_score || 0).toFixed(1) : '0',
+            result.status === 'success' ? (result.clarity_score || 0).toFixed(1) : '0',
+            result.status === 'success' ? (result.tone_score || 0).toFixed(1) : '0',
+            result.status === 'success' ? (result.length_score || 0).toFixed(1) : '0',
+            result.status === 'success' ? (result.personalization_score || 0).toFixed(1) : '0',
+            result.status === 'success' ? (result.spam_risk_score || 0).toFixed(1) : '0',
+            strengths,
+            issues,
+            altSubjects,
+            portfolioItems
+        ];
+    });
+    
+    console.log('Total rows to export:', rows.length);
+    console.log('Sample row:', rows[0]);
+    
+    // Create CSV content with proper escaping
+    const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => {
+            // Convert to string and escape quotes
+            const str = String(cell).replace(/"/g, '""');
+            // Wrap in quotes if contains comma, newline, or quote
+            return /[",\n\r]/.test(str) ? `"${str}"` : str;
+        }).join(','))
+    ].join('\n');
+    
+    console.log('CSV size:', csvContent.length, 'characters');
+    
+    // Add BOM for Excel UTF-8 compatibility
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lead-generation-results-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    showToast('Results downloaded with all data!', 'success');
+}
