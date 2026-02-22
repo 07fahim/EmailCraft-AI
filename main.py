@@ -7,18 +7,24 @@ import os
 import logging
 import math
 import json
+import hashlib
+import time
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from typing import Optional, Any
+from typing import Optional, Any, Dict, Tuple
 
 from models.schemas import AgentRequest
 from agents.planner_agent import PlannerAgent
 from agents.lead_sourcing_agent import LeadSourcingAgent
 from database.db_manager import get_db
+
+# Email generation cache with TTL (1 hour)
+EMAIL_CACHE: Dict[str, Tuple[dict, float]] = {}
+CACHE_TTL = 3600  # 1 hour in seconds
 
 
 def sanitize_floats(obj: Any) -> Any:
@@ -88,11 +94,25 @@ def get_lead_sourcing():
     return lead_sourcing
 
 
+def cleanup_expired_cache():
+    """Remove expired entries from email cache."""
+    current_time = time.time()
+    expired_keys = [
+        key for key, (_, timestamp) in EMAIL_CACHE.items()
+        if current_time - timestamp > CACHE_TTL
+    ]
+    for key in expired_keys:
+        del EMAIL_CACHE[key]
+    if expired_keys:
+        logger.info(f"🧹 Cleaned up {len(expired_keys)} expired cache entries")
+
+
 @app.on_event("startup")
 async def startup_event():
     """Warm up the system on startup for faster first requests."""
     logger.info("🚀 Starting EmailCraft AI...")
     logger.info("✅ Server ready - agents will initialize on first request")
+    logger.info(f"💾 Email caching enabled (TTL: {CACHE_TTL/3600}h)")
 
 
 class EmailRequest(BaseModel):
@@ -139,7 +159,25 @@ async def api_info():
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
+    # Cleanup expired cache entries periodically
+    cleanup_expired_cache()
     return {"status": "healthy"}
+
+
+@app.get("/cache-info")
+async def cache_info():
+    """Get cache statistics."""
+    current_time = time.time()
+    active_entries = sum(
+        1 for _, timestamp in EMAIL_CACHE.values()
+        if current_time - timestamp < CACHE_TTL
+    )
+    return {
+        "total_entries": len(EMAIL_CACHE),
+        "active_entries": active_entries,
+        "cache_ttl_seconds": CACHE_TTL,
+        "cache_ttl_hours": CACHE_TTL / 3600
+    }
 
 
 @app.get("/history")
@@ -237,6 +275,8 @@ async def generate_email(request: EmailRequest):
     Two input modes:
     1. Job URL Mode: job_url + product
     2. Structured Mode: role + industry + product
+    
+    OPTIMIZED: Caches results by request parameters (1 hour TTL)
     """
     try:
         # Validate input mode
@@ -246,6 +286,22 @@ async def generate_email(request: EmailRequest):
                     status_code=400,
                     detail="Either provide job_url OR (role + industry)"
                 )
+        
+        # Create cache key from request parameters
+        cache_key_data = f"{request.job_url}|{request.role}|{request.industry}|{request.tone}|{request.sender_name}|{request.sender_company}|{request.sender_services}"
+        cache_key = hashlib.md5(cache_key_data.encode()).hexdigest()
+        
+        # Check cache
+        if cache_key in EMAIL_CACHE:
+            cached_response, timestamp = EMAIL_CACHE[cache_key]
+            age = time.time() - timestamp
+            if age < CACHE_TTL:
+                logger.info(f"⚡ Using cached email (age: {int(age/60)}m) for: {request.job_url or request.role}")
+                return SafeJSONResponse(content=cached_response)
+            else:
+                # Cache expired
+                logger.info(f"♻️ Cache expired, regenerating email")
+                del EMAIL_CACHE[cache_key]
         
         # Convert to AgentRequest
         agent_request = AgentRequest(
@@ -302,6 +358,10 @@ async def generate_email(request: EmailRequest):
             "scraped_job_data": sanitized_result.get("scraped_job_data", None)
         }
         
+        # Store in cache
+        EMAIL_CACHE[cache_key] = (response_data, time.time())
+        logger.info(f"💾 Cached email response (cache size: {len(EMAIL_CACHE)})")
+        
         return SafeJSONResponse(content=response_data)
         
     except HTTPException:
@@ -321,9 +381,10 @@ async def generate_from_leads(request: LeadGenerationRequest):
     
     Workflow:
     1. Scrape businesses from Google Maps
-    2. Find decision-maker emails
-    3. Generate personalized emails for each lead
-    4. Return batch results
+    2. Generate personalized emails for each lead
+    3. Return batch results
+    
+    OPTIMIZED: Caches individual lead emails to speed up regeneration
     """
     try:
         logger.info(f"🚀 Lead generation started: {request.business_type} in {request.location}")
@@ -349,6 +410,21 @@ async def generate_from_leads(request: LeadGenerationRequest):
             try:
                 logger.info(f"📧 Generating email {idx + 1}/{len(leads)} for {lead.company_name}")
                 
+                # Create cache key for this specific lead email
+                lead_cache_key_data = f"{lead.company_name}|{lead.category}|{request.sender_services}|{request.tone}|{request.sender_name}"
+                lead_cache_key = hashlib.md5(lead_cache_key_data.encode()).hexdigest()
+                
+                # Check cache for this lead
+                if lead_cache_key in EMAIL_CACHE:
+                    cached_result, timestamp = EMAIL_CACHE[lead_cache_key]
+                    age = time.time() - timestamp
+                    if age < CACHE_TTL:
+                        logger.info(f"⚡ Using cached email for {lead.company_name} (age: {int(age/60)}m)")
+                        # Update lead info in cached result
+                        cached_result["lead"] = lead.to_dict()
+                        results.append(cached_result)
+                        continue
+                
                 # Create agent request
                 # For lead generation, use sender's services as "role" since we're offering services
                 # not applying for a job. This helps portfolio matching work correctly.
@@ -371,7 +447,7 @@ async def generate_from_leads(request: LeadGenerationRequest):
                 final_email = sanitized_result.get("final_email", {})
                 evaluation_details = sanitized_result.get("evaluation_details", {})
                 
-                results.append({
+                lead_result = {
                     "lead": lead.to_dict(),
                     "email": {
                         "subject_line": final_email.get("subject_line", ""),
@@ -390,7 +466,11 @@ async def generate_from_leads(request: LeadGenerationRequest):
                     "portfolio_items": sanitized_result.get("portfolio_items_used", []),
                     "alt_subjects": sanitized_result.get("alternative_subject_lines", []),
                     "status": "success"
-                })
+                }
+                
+                # Cache this lead's email
+                EMAIL_CACHE[lead_cache_key] = (lead_result, time.time())
+                results.append(lead_result)
                 
                 logger.info(f"✅ Email generated for {lead.company_name} (Score: {sanitized_result.get('final_score', 0)})")
                 

@@ -95,8 +95,20 @@ async function generateEmail(formData) {
         });
         
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Failed to generate email');
+            // Handle 502 Bad Gateway (timeout)
+            if (response.status === 502) {
+                throw new Error('Request timed out. The AI is experiencing high load. Please try again in a moment.');
+            }
+            
+            // Try to parse error JSON, but handle cases where response is not JSON
+            let errorMessage = 'Failed to generate email';
+            try {
+                const error = await response.json();
+                errorMessage = error.detail || errorMessage;
+            } catch (e) {
+                errorMessage = `Server error (${response.status}). Please try again.`;
+            }
+            throw new Error(errorMessage);
         }
         
         const data = await response.json();
