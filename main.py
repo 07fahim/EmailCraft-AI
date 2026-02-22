@@ -357,7 +357,7 @@ async def generate_from_leads(request: LeadGenerationRequest):
                     industry=lead.category or "Business",
                     tone=request.tone,
                     company_name=lead.company_name,
-                    recipient_name=lead.decision_maker_name,
+                    recipient_name="Hiring Manager",  # Generic since we don't find emails
                     sender_name=request.sender_name,
                     sender_company=request.sender_company,
                     sender_services=request.sender_services

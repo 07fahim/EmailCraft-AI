@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EmailCraft AI - Professional Email Generator</title>
-    <link rel="stylesheet" href="styles.css?v=2.0" />
+    <link rel="stylesheet" href="styles.css?v=2.1" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
@@ -444,13 +444,6 @@
                   />
                 </div>
 
-                <div class="form-group">
-                  <label>
-                    <input type="checkbox" id="findEmails" checked />
-                    Find decision-maker emails
-                  </label>
-                </div>
-
                 <button
                   type="submit"
                   class="btn btn-primary btn-block"
@@ -479,16 +472,22 @@
                 style="display: none"
               >
                 <div class="spinner"></div>
-                <p>Generating leads and emails...</p>
+                <p>AI agents working...</p>
                 <div class="loading-steps">
-                  <div class="step">
+                  <div class="step" id="leadStep1">
                     <i class="fas fa-search"></i> Scraping Google Maps
                   </div>
-                  <div class="step">
-                    <i class="fas fa-envelope"></i> Finding emails
+                  <div class="step" id="leadStep2">
+                    <i class="fas fa-user-check"></i> Analyzing businesses
                   </div>
-                  <div class="step">
+                  <div class="step" id="leadStep3">
+                    <i class="fas fa-folder-open"></i> Matching portfolio
+                  </div>
+                  <div class="step" id="leadStep4">
                     <i class="fas fa-pen"></i> Generating emails
+                  </div>
+                  <div class="step" id="leadStep5">
+                    <i class="fas fa-check-double"></i> Evaluating quality
                   </div>
                 </div>
               </div>
@@ -509,11 +508,11 @@
                   </div>
                   <div class="info-step">
                     <div class="step-icon">
-                      <i class="fas fa-envelope"></i>
+                      <i class="fas fa-user-check"></i>
                     </div>
                     <div class="step-content">
-                      <h4>2. Find Emails</h4>
-                      <p>Discover decision-maker emails</p>
+                      <h4>2. Analyze Businesses</h4>
+                      <p>Extract company details and websites</p>
                     </div>
                   </div>
                   <div class="info-step">
@@ -935,8 +934,8 @@
       <p class="tech-stack">FastAPI • LangChain • Groq LLM • Pinecone • RAG</p>
     </footer>
 
-    <script src="config.js?v=2.0"></script>
-    <script src="theme.js?v=2.0"></script>
-    <script src="script.js?v=2.0"></script>
+    <script src="config.js?v=2.1"></script>
+    <script src="theme.js?v=2.1"></script>
+    <script src="script.js?v=2.1"></script>
   </body>
 </html>

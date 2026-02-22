@@ -137,6 +137,30 @@ function animateLoadingSteps() {
     window.loadingInterval = interval;
 }
 
+function animateLeadLoadingSteps() {
+    const steps = document.querySelectorAll('#leadPreviewLoadingState .loading-steps .step');
+    let currentStep = 0;
+    
+    const interval = setInterval(() => {
+        if (currentStep < steps.length) {
+            steps[currentStep].classList.remove('active');
+            steps[currentStep].classList.add('done');
+            currentStep++;
+            if (currentStep < steps.length) {
+                steps[currentStep].classList.add('active');
+            }
+        } else {
+            clearInterval(interval);
+        }
+    }, 1500);
+    
+    // Start first step
+    steps[0].classList.add('active');
+    
+    // Store interval to clear later
+    window.leadLoadingInterval = interval;
+}
+
 function showState(state) {
     document.getElementById('loadingState').style.display = state === 'loading' ? 'block' : 'none';
     document.getElementById('emptyState').style.display = state === 'empty' ? 'block' : 'none';
@@ -1162,7 +1186,7 @@ function displayAnalytics(data) {
         const maxCount = Math.max(...roles.map(r => r.count));
         roleBars.innerHTML = roles.slice(0, 6).map(role => `
             <div class="role-bar-item">
-                <span class="role-bar-label">${role.role}</span>
+                <span class="role-bar-label" title="${role.role}">${role.role}</span>
                 <div class="role-bar-track">
                     <div class="role-bar-fill" style="width: ${(role.count / maxCount) * 100}%">
                         ${role.count}
@@ -1181,7 +1205,7 @@ function displayAnalytics(data) {
         const maxScoreCount = Math.max(...scores.map(s => s.count));
         scoreDistribution.innerHTML = scores.map(s => `
             <div class="score-bar">
-                <div class="score-bar-fill" style="height: ${(s.count / maxScoreCount) * 150}px"></div>
+                <div class="score-bar-fill" style="height: ${(s.count / maxScoreCount) * 150}px" title="${s.count} emails in ${s.range} range"></div>
                 <span class="score-bar-label">${s.range}</span>
             </div>
         `).join('');
@@ -1552,7 +1576,6 @@ document.getElementById('leadForm')?.addEventListener('submit', async (e) => {
     const businessType = document.getElementById('businessType').value;
     const location = document.getElementById('location').value;
     const maxLeads = parseInt(document.getElementById('maxLeads').value) || 20;
-    const findEmails = document.getElementById('findEmails').checked;
     const senderName = document.getElementById('leadSenderName').value;
     const senderCompany = document.getElementById('leadSenderCompany').value;
     const senderServices = document.getElementById('leadSenderServices').value;
@@ -1562,6 +1585,9 @@ document.getElementById('leadForm')?.addEventListener('submit', async (e) => {
     document.getElementById('leadPreviewResultState').style.display = 'none';
     document.getElementById('leadPreviewLoadingState').style.display = 'block';
     document.getElementById('leadScoreBadge').style.display = 'none';
+    
+    // Animate loading steps
+    animateLeadLoadingSteps();
     
     document.getElementById('leadResults').style.display = 'none';
     document.getElementById('generateLeadsBtn').disabled = true;
@@ -1574,7 +1600,6 @@ document.getElementById('leadForm')?.addEventListener('submit', async (e) => {
                 business_type: businessType,
                 location: location,
                 max_results: maxLeads,
-                find_emails: findEmails,
                 sender_name: senderName,
                 sender_company: senderCompany,
                 sender_services: senderServices,
@@ -1598,6 +1623,11 @@ document.getElementById('leadForm')?.addEventListener('submit', async (e) => {
     } catch (error) {
         console.error('Lead generation error:', error);
         showToast(error.message || 'Lead generation failed', 'error');
+        // Clear loading animation
+        clearInterval(window.leadLoadingInterval);
+        document.querySelectorAll('#leadPreviewLoadingState .loading-steps .step').forEach(step => {
+            step.classList.remove('active', 'done');
+        });
         // Reset preview card to empty state on error
         document.getElementById('leadPreviewLoadingState').style.display = 'none';
         document.getElementById('leadPreviewEmptyState').style.display = 'block';
@@ -1607,6 +1637,12 @@ document.getElementById('leadForm')?.addEventListener('submit', async (e) => {
 });
 
 function displayLeadResults(data) {
+    // Clear loading animation
+    clearInterval(window.leadLoadingInterval);
+    document.querySelectorAll('#leadPreviewLoadingState .loading-steps .step').forEach(step => {
+        step.classList.remove('active', 'done');
+    });
+    
     // Update stats
     document.getElementById('leadTotalCount').textContent = data.total_leads;
     document.getElementById('leadSuccessCount').textContent = data.successful_emails;
@@ -1894,6 +1930,12 @@ function resetLeadGeneration() {
     document.getElementById('leadResults').style.display = 'none';
     document.getElementById('leadForm').reset();
     leadGenerationResults = [];
+    
+    // Clear loading animation
+    clearInterval(window.leadLoadingInterval);
+    document.querySelectorAll('#leadPreviewLoadingState .loading-steps .step').forEach(step => {
+        step.classList.remove('active', 'done');
+    });
     
     // Reset preview card to empty state
     document.getElementById('leadPreviewResultState').style.display = 'none';
