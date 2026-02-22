@@ -113,7 +113,6 @@ class LeadGenerationRequest(BaseModel):
     business_type: str = Field(..., description="Type of business to search (e.g., 'software companies', 'restaurants')")
     location: str = Field(..., description="Location to search (e.g., 'New York, NY', 'San Francisco')")
     max_results: int = Field(default=20, description="Maximum number of leads to generate")
-    find_emails: bool = Field(default=True, description="Whether to find decision-maker emails")
     sender_name: str = Field(default="Alex", description="Your name for email signature")
     sender_company: str = Field(default="TechSolutions Inc.", description="Your company name")
     sender_services: str = Field(default="software development and consulting services", description="Your services")
@@ -333,8 +332,7 @@ async def generate_from_leads(request: LeadGenerationRequest):
         leads = get_lead_sourcing().generate_leads(
             business_type=request.business_type,
             location=request.location,
-            max_results=request.max_results,
-            find_emails=request.find_emails
+            max_results=request.max_results
         )
         
         if not leads:
