@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-teal?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
-[📖 User Guide](USER_GUIDE.md) • [🚀 Quick Start](#quick-start) • [🎯 Lead Sourcing](LEAD_SOURCING_GUIDE.md) • [📝 Custom Templates](CUSTOM_TEMPLATES_GUIDE.md)
+[📖 User Guide](USER_GUIDE.md) • [🚀 Quick Start](#quick-start) • [🎯 Lead Sourcing](LEAD_SOURCING_GUIDE.md) • [📝 Custom Templates](CUSTOM_TEMPLATES_GUIDE.md) • [🔍 LangSmith Setup](LANGSMITH_SETUP.md)
 
 ---
 
@@ -50,6 +50,7 @@ _See [User Guide](USER_GUIDE.md) for complete documentation_
 | **Batch Processing**       | Process 10-50+ emails from CSV                                                 |
 | **Excel Export**           | Export results with full details                                               |
 | **Light/Dark Mode**        | Beautiful UI with theme switching                                              |
+| **LangSmith Integration**  | Full tracing and monitoring for debugging and optimization                     |
 
 ---
 
@@ -374,14 +375,17 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for complete step-by-step guide.
 
 ### Environment Variables
 
-| Variable           | Required | Default              | Description           |
-| ------------------ | -------- | -------------------- | --------------------- |
-| `GROQ_API_KEY`     | ✅       | -                    | Groq API key          |
-| `GROQ_MODEL`       | ❌       | llama-3.1-8b-instant | LLM model             |
-| `PINECONE_API_KEY` | ❌       | -                    | Pinecone (production) |
-| `DATABASE_URL`     | ❌       | -                    | PostgreSQL URL        |
-| `APIFY_API_KEY`    | ❌       | -                    | Google Maps scraping  |
-| `ANYMAIL_API_KEY`  | ❌       | -                    | Email discovery       |
+| Variable               | Required | Default                | Description            |
+| ---------------------- | -------- | ---------------------- | ---------------------- |
+| `GROQ_API_KEY`         | ✅       | -                      | Groq API key           |
+| `GROQ_MODEL`           | ❌       | llama-3.1-8b-instant   | LLM model              |
+| `PINECONE_API_KEY`     | ❌       | -                      | Pinecone (production)  |
+| `DATABASE_URL`         | ❌       | -                      | PostgreSQL URL         |
+| `APIFY_API_KEY`        | ❌       | -                      | Google Maps scraping   |
+| `ANYMAIL_API_KEY`      | ❌       | -                      | Email discovery        |
+| `LANGCHAIN_TRACING_V2` | ❌       | false                  | Enable LangSmith       |
+| `LANGCHAIN_API_KEY`    | ❌       | -                      | LangSmith API key      |
+| `LANGCHAIN_PROJECT`    | ❌       | cold-outreach-ai-agent | LangSmith project name |
 
 ### Customize Portfolio
 
@@ -429,6 +433,7 @@ See [Custom Templates Guide](CUSTOM_TEMPLATES_GUIDE.md) for details.
 - [Lead Sourcing Guide](LEAD_SOURCING_GUIDE.md) - Automated lead generation
 - [Custom Templates Guide](CUSTOM_TEMPLATES_GUIDE.md) - Template customization
 - [Deployment Guide](DEPLOYMENT.md) - Production deployment
+- [LangSmith Setup](LANGSMITH_SETUP.md) - Tracing and monitoring configuration
 
 ---
 

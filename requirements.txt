@@ -12,6 +12,9 @@ langchain>=0.1.0
 langchain-community>=0.0.20
 langchain-core>=0.1.0
 
+# LangSmith Tracing & Monitoring
+langsmith>=0.1.0
+
 # Vector Store
 # Local: ChromaDB (lightweight, no external deps)
 # Production: Pinecone (cloud-based, low memory)

@@ -22,6 +22,15 @@ from agents.planner_agent import PlannerAgent
 from agents.lead_sourcing_agent import LeadSourcingAgent
 from database.db_manager import get_db
 
+# LangSmith Configuration (optional, requires API key)
+# Set LANGCHAIN_TRACING_V2=true in .env to enable
+if os.getenv("LANGCHAIN_TRACING_V2", "false").lower() == "true":
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+    os.environ["LANGCHAIN_ENDPOINT"] = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
+    os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY", "")
+    os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGCHAIN_PROJECT", "cold-outreach-ai-agent")
+    print(f"✅ LangSmith tracing enabled for project: {os.environ['LANGCHAIN_PROJECT']}")
+
 # Email generation cache with TTL (1 hour)
 EMAIL_CACHE: Dict[str, Tuple[dict, float]] = {}
 CACHE_TTL = 3600  # 1 hour in seconds
