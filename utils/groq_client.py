@@ -24,7 +24,7 @@ class RateLimitedChatGroq(ChatGroq):
     # Class-level rate limiting (shared across all instances)
     _last_call_time = 0.0
     _lock = threading.Lock()
-    _min_interval = 4.0  # 4s between calls = max 15 calls/min (free tier allows ~30/min)
+    _min_interval = 10.0  # 10s between calls = max 6 calls/min (free tier ~30/min, but burst limits are tight)
     _consecutive_429s = 0  # Track consecutive 429s for backoff
     
     def invoke(self, *args, **kwargs):
