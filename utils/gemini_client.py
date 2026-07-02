@@ -15,37 +15,38 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+_RATE_LIMIT_LOCK = threading.Lock()
+_LAST_CALL_TIME = 0.0
+_MIN_INTERVAL = 2.0
+_CONSECUTIVE_429S = 0
+
 
 class RateLimitedChatGemini(ChatGoogleGenerativeAI):
     """ChatGoogleGenerativeAI wrapper with rate limiting."""
 
-    _last_call_time = 0.0
-    _lock = threading.Lock()
-    _min_interval = 2.0  # 2s between calls
-    _consecutive_429s = 0
-
     def invoke(self, *args, **kwargs):
-        with RateLimitedChatGemini._lock:
+        global _LAST_CALL_TIME, _CONSECUTIVE_429S
+        with _RATE_LIMIT_LOCK:
             now = time.time()
-            elapsed = now - RateLimitedChatGemini._last_call_time
-            interval = RateLimitedChatGemini._min_interval * (2 ** RateLimitedChatGemini._consecutive_429s)
+            elapsed = now - _LAST_CALL_TIME
+            interval = _MIN_INTERVAL * (2 ** _CONSECUTIVE_429S)
             if elapsed < interval:
                 sleep_time = interval - elapsed
                 logger.info(f"Rate limiting: waiting {sleep_time:.1f}s before API call")
                 time.sleep(sleep_time)
-            RateLimitedChatGemini._last_call_time = time.time()
+            _LAST_CALL_TIME = time.time()
 
         try:
             result = super().invoke(*args, **kwargs)
-            with RateLimitedChatGemini._lock:
-                RateLimitedChatGemini._consecutive_429s = max(0, RateLimitedChatGemini._consecutive_429s - 1)
+            with _RATE_LIMIT_LOCK:
+                _CONSECUTIVE_429S = max(0, _CONSECUTIVE_429S - 1)
             return result
         except Exception as e:
             error_str = str(e)
             if "429" in error_str or "rate limit" in error_str.lower() or "RESOURCE_EXHAUSTED" in error_str:
-                with RateLimitedChatGemini._lock:
-                    RateLimitedChatGemini._consecutive_429s = min(5, RateLimitedChatGemini._consecutive_429s + 1)
-                logger.warning(f"Hit rate limit (429). Consecutive: {RateLimitedChatGemini._consecutive_429s}")
+                with _RATE_LIMIT_LOCK:
+                    _CONSECUTIVE_429S = min(5, _CONSECUTIVE_429S + 1)
+                logger.warning(f"Hit rate limit (429). Consecutive: {_CONSECUTIVE_429S}")
             raise
 
 
