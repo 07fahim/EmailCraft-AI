@@ -101,56 +101,39 @@ class EvaluationAgent:
         Evaluate email and optimize if needed.
         Only ONE optimization pass allowed.
         """
-        # Step 1: Initial evaluation with job context
-        initial_evaluation = self._evaluate(email_draft, persona, job_role, target_company)
+        # Step 1: Initial evaluation with job context (includes alt subject generation)
+        initial_evaluation, alternative_subjects = self._evaluate(email_draft, persona, job_role, target_company)
         initial_score = initial_evaluation.overall_score
         
         logger.info(f"Initial evaluation score: {initial_score:.1f}/10")
         
         # Step 2: Optimize if needed (ONLY ONE PASS)
         improvements_summary = []
-        alternative_subjects_from_optimization = None
         
         if initial_score < self.QUALITY_THRESHOLD:
             logger.info(f"Score below threshold ({self.QUALITY_THRESHOLD}), optimizing...")
-            optimized_draft, improvements, alt_subjects = self._optimize(email_draft, initial_evaluation, persona)
+            optimized_draft, improvements, _ = self._optimize(email_draft, initial_evaluation, persona)
             
             # Re-evaluate optimized version with job context
-            optimized_evaluation = self._evaluate(optimized_draft, persona, job_role, target_company)
+            optimized_evaluation, _ = self._evaluate(optimized_draft, persona, job_role, target_company)
             logger.info(f"Optimized version score: {optimized_evaluation.overall_score:.1f}/10")
             
-            # CRITICAL: Keep whichever version scores HIGHER
             if optimized_evaluation.overall_score >= initial_score:
-                # Optimization improved or maintained score - use optimized
                 logger.info(f"Optimization successful: {initial_score:.1f} → {optimized_evaluation.overall_score:.1f}")
                 optimization_applied = True
                 improvements_summary = improvements
-                alternative_subjects_from_optimization = alt_subjects
                 final_evaluation = optimized_evaluation
             else:
-                # Optimization made it WORSE - keep original!
                 logger.warning(f"Optimization made score worse ({initial_score:.1f} → {optimized_evaluation.overall_score:.1f}), keeping original")
-                optimized_draft = email_draft  # Revert to original
+                optimized_draft = email_draft
                 optimization_applied = False
                 improvements_summary = ["Optimization attempted but original scored higher"]
-                alternative_subjects_from_optimization = alt_subjects  # Still keep alt subjects
                 final_evaluation = initial_evaluation
         else:
             logger.info("Score above threshold, skipping optimization")
             optimized_draft = email_draft
             optimization_applied = False
             final_evaluation = initial_evaluation
-        
-        # Step 3: Generate alternative subject lines
-        if alternative_subjects_from_optimization:
-            alternative_subjects = alternative_subjects_from_optimization
-        else:
-            alternative_subjects = self._generate_alternative_subjects(
-                optimized_draft.subject_line,
-                persona,
-                job_role,
-                target_company
-            )
         
         return OptimizedEmail(
             email=optimized_draft,
@@ -167,8 +150,8 @@ class EvaluationAgent:
         persona: PersonaOutput,
         job_role: str = "the position",
         target_company: str = "the company"
-    ) -> EvaluationMetrics:
-        """Evaluate email quality. OPTIMIZED: Uses quick checks for validation."""
+    ) -> tuple[EvaluationMetrics, List[str]]:
+        """Evaluate email quality and generate alternative subject lines in one call."""
         # OPTIMIZED: Do quick pre-checks first
         quick_checks = self._quick_quality_check(email_draft)
         
@@ -182,6 +165,25 @@ class EvaluationAgent:
             tone=persona.tone,
             pain_points=", ".join(persona.pain_points)
         )
+        # Also ask for alternative subject lines in the same call
+        prompt += f"""
+
+Also generate 3 alternative subject lines for this email.
+Use the actual company name "{target_company}" and role "{job_role}" — no placeholders.
+Return them as a JSON array in a field "alternative_subject_lines".
+
+Example format for the JSON response:
+{{
+    "clarity_score": 8.5,
+    "tone_alignment_score": 8.0,
+    "length_score": 7.5,
+    "spam_risk_score": 3.0,
+    "personalization_score": 8.0,
+    "overall_score": 8.2,
+    "issues": [...],
+    "strengths": [...],
+    "alternative_subject_lines": ["Subject 1", "Subject 2", "Subject 3"]
+}}"""
         
         response = self.llm.invoke(prompt)
         response_text = response.content.strip()
@@ -266,6 +268,17 @@ class EvaluationAgent:
             if quick_checks['has_portfolio'] and not any('portfolio' in s.lower() for s in normalized_strengths):
                 normalized_strengths.append("Portfolio link included")
             
+            alternative_subjects = eval_dict.get("alternative_subject_lines", [])
+            if not isinstance(alternative_subjects, list):
+                alternative_subjects = []
+            # Fallback: generate 3 basic alt subjects if LLM didn't return them
+            if len(alternative_subjects) < 1:
+                alternative_subjects = [
+                    f"{email_draft.subject_line} - [target_company]",
+                    f"Quick question from [sender_name] regarding [target_company]",
+                    f"Excited about the opportunity at [target_company]"
+                ]
+
             return EvaluationMetrics(
                 clarity_score=safe_float(eval_dict.get("clarity_score", 7.0)),
                 tone_alignment_score=safe_float(eval_dict.get("tone_alignment_score", 7.0)),
@@ -274,8 +287,8 @@ class EvaluationAgent:
                 personalization_score=safe_float(eval_dict.get("personalization_score", 7.0)),
                 overall_score=safe_float(eval_dict.get("overall_score", 7.0)),
                 issues=filtered_issues,
-                strengths=normalized_strengths  # Use normalized strengths
-            )
+                strengths=normalized_strengths
+            ), alternative_subjects
         except (json.JSONDecodeError, ValueError, KeyError) as e:
             logger.warning(f"Evaluation parsing failed, using defaults. Error: {e}")
             return EvaluationMetrics(
@@ -287,7 +300,7 @@ class EvaluationAgent:
                 overall_score=7.0,
                 issues=[],
                 strengths=["Generated successfully"]
-            )
+            ), [email_draft.subject_line, f"Re: {email_draft.subject_line}"]
     
     def _optimize(
         self,
@@ -357,67 +370,3 @@ class EvaluationAgent:
             logger.warning(f"Optimization parsing failed, using original. Error: {e}")
             return email_draft, ["Optimization attempted but parsing failed"], None
     
-    def _generate_alternative_subjects(
-        self,
-        original_subject: str,
-        persona: PersonaOutput,
-        job_role: str = "the position",
-        company_name: str = "the company"
-    ) -> List[str]:
-        """Generate 2-3 alternative subject lines with actual company and role names."""
-        prompt = f"""Generate 3 alternative subject lines for a B2B cold email.
-
-Original subject: {original_subject}
-Tone: {persona.tone}
-Company Name: {company_name}
-Job Role: {job_role}
-
-RULES (CRITICAL):
-- Each subject must be 40-55 characters MAX
-- Professional and business-appropriate
-- MUST use the actual company name "{company_name}" - NOT [Company] placeholder
-- MUST use the actual role "{job_role}" - NOT [Role] placeholder
-- Sound respectful and relevant
-- NO placeholders like [Company] or [Role] - use actual names!
-- NO corporate jargon (avoid: leverage, unlock, accelerate, optimize, solutions)
-- NO spam words (avoid: FREE, URGENT, exclusive, guaranteed)
-
-GOOD examples using actual names:
-- "Regarding {company_name}'s {job_role} opening"
-- "{job_role} hiring - an alternative approach"
-- "Supporting {company_name}'s {job_role} needs"
-- "{company_name} + partnership opportunity"
-
-BAD examples (don't do this):
-- "Regarding [Company]'s [Role] opening" ❌ uses placeholders
-- "Exploring Opportunities for Accelerated Development" ❌ too long, corporate
-- "Quick question about..." ❌ too casual
-
-Return ONLY a JSON array with 3 professional subjects using ACTUAL company/role names:
-["subject 1", "subject 2", "subject 3"]"""
-        
-        response = self.llm.invoke(prompt)
-        response_text = response.content.strip()
-        
-        try:
-            if "```json" in response_text:
-                response_text = response_text.split("```json")[1].split("```")[0].strip()
-            elif "```" in response_text:
-                response_text = response_text.split("```")[1].split("```")[0].strip()
-            
-            response_text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', response_text)
-            subjects = json.loads(response_text)
-            
-            if isinstance(subjects, list):
-                # Normalize subjects - ensure they're strings
-                normalized_subjects = []
-                for subject in subjects[:3]:
-                    if isinstance(subject, dict):
-                        subject = subject.get('text') or subject.get('subject') or str(subject)
-                    if not isinstance(subject, str):
-                        subject = str(subject)
-                    normalized_subjects.append(subject)
-                return normalized_subjects
-            return [original_subject]
-        except (json.JSONDecodeError, TypeError):
-            return [original_subject, f"Re: {original_subject}", f"Quick question: {original_subject[:30]}"]
