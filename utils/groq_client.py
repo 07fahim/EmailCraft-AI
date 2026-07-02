@@ -24,20 +24,35 @@ class RateLimitedChatGroq(ChatGroq):
     # Class-level rate limiting (shared across all instances)
     _last_call_time = 0.0
     _lock = threading.Lock()
-    _min_interval = 1.5  # Minimum seconds between API calls
+    _min_interval = 4.0  # 4s between calls = max 15 calls/min (free tier allows ~30/min)
+    _consecutive_429s = 0  # Track consecutive 429s for backoff
     
     def invoke(self, *args, **kwargs):
-        """Rate-limited invoke method."""
+        """Rate-limited invoke method with exponential backoff."""
         with RateLimitedChatGroq._lock:
             now = time.time()
             elapsed = now - RateLimitedChatGroq._last_call_time
-            if elapsed < RateLimitedChatGroq._min_interval:
-                sleep_time = RateLimitedChatGroq._min_interval - elapsed
-                logger.debug(f"Rate limiting: waiting {sleep_time:.2f}s before API call")
+            # Apply backoff if we hit rate limits before
+            interval = RateLimitedChatGroq._min_interval * (2 ** RateLimitedChatGroq._consecutive_429s)
+            if elapsed < interval:
+                sleep_time = interval - elapsed
+                logger.info(f"⏳ Rate limiting: waiting {sleep_time:.1f}s before API call")
                 time.sleep(sleep_time)
             RateLimitedChatGroq._last_call_time = time.time()
         
-        return super().invoke(*args, **kwargs)
+        try:
+            result = super().invoke(*args, **kwargs)
+            # Success - reset backoff
+            with RateLimitedChatGroq._lock:
+                RateLimitedChatGroq._consecutive_429s = max(0, RateLimitedChatGroq._consecutive_429s - 1)
+            return result
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str or "rate limit" in error_str.lower():
+                with RateLimitedChatGroq._lock:
+                    RateLimitedChatGroq._consecutive_429s = min(5, RateLimitedChatGroq._consecutive_429s + 1)
+                logger.warning(f"⚠️ Hit rate limit (429). Consecutive: {RateLimitedChatGroq._consecutive_429s}")
+            raise
 
 
 class GroqClient:
