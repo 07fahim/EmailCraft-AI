@@ -138,17 +138,35 @@ def get_groq_client():
     """
     Get the best available LLM instance.
     Auto-detects: Gemini (if GOOGLE_API_KEY is set) > Groq (fallback).
+    If both are set, configures Gemini with Groq as an automatic fallback on errors (like 429).
     
     Returns:
-        ChatGoogleGenerativeAI or ChatGroq instance (both expose .invoke())
+        ChatGoogleGenerativeAI, ChatGroq, or a RunnableWithFallbacks instance
     """
-    # If GOOGLE_API_KEY is set, prefer Gemini (better free tier, 1500 req/day)
+    gemini_llm = None
     if os.getenv("GOOGLE_API_KEY"):
-        from utils.gemini_client import GeminiClient
-        client = GeminiClient()
-        return client.llm
-    
-    # Fallback to Groq
-    client = GroqClient()
-    return client.llm
+        try:
+            from utils.gemini_client import GeminiClient
+            client = GeminiClient()
+            gemini_llm = client.llm
+        except Exception as e:
+            logger.warning(f"Failed to initialize Gemini: {e}")
+
+    groq_llm = None
+    if os.getenv("GROQ_API_KEY"):
+        try:
+            client = GroqClient()
+            groq_llm = client.llm
+        except Exception as e:
+            logger.warning(f"Failed to initialize Groq: {e}")
+
+    if gemini_llm and groq_llm:
+        logger.info("Both Gemini and Groq API keys found. Using Gemini with Groq as fallback.")
+        return gemini_llm.with_fallbacks([groq_llm])
+    elif gemini_llm:
+        return gemini_llm
+    elif groq_llm:
+        return groq_llm
+    else:
+        raise ValueError("Neither GOOGLE_API_KEY nor GROQ_API_KEY is properly configured.")
 
