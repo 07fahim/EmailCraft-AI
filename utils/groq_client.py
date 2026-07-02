@@ -135,13 +135,21 @@ class GroqClient:
         )
 
 
-def get_groq_client() -> ChatGroq:
+def get_groq_client():
     """
-    Convenience function to get the Groq LLM instance.
+    Get the best available LLM instance.
+    Auto-detects: Gemini (if GOOGLE_API_KEY is set) > Groq (fallback).
     
     Returns:
-        ChatGroq instance
+        ChatGoogleGenerativeAI or ChatGroq instance (both expose .invoke())
     """
+    # If GOOGLE_API_KEY is set, prefer Gemini (better free tier, 1500 req/day)
+    if os.getenv("GOOGLE_API_KEY"):
+        from utils.gemini_client import GeminiClient
+        client = GeminiClient()
+        return client.llm
+    
+    # Fallback to Groq
     client = GroqClient()
     return client.llm
 

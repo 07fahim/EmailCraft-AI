@@ -6,7 +6,8 @@ python-multipart==0.0.6
 # Data Validation
 pydantic==2.5.0
 
-# LLM Provider - Groq
+# LLM Provider - Gemini (primary) / Groq (fallback)
+langchain-google-genai>=2.0.0
 langchain-groq>=0.1.0
 langchain>=0.1.0
 langchain-community>=0.0.20

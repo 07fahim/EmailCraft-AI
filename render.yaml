@@ -9,8 +9,12 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     envVars:
+      - key: GOOGLE_API_KEY
+        sync: false # Set manually in Render dashboard (get from https://aistudio.google.com/apikey)
+      - key: GOOGLE_MODEL
+        value: gemini-2.0-flash
       - key: GROQ_API_KEY
-        sync: false # Set manually in Render dashboard
+        sync: false # Fallback if GOOGLE_API_KEY not set
       - key: GROQ_MODEL
         value: llama-3.1-8b-instant
       - key: ANONYMIZED_TELEMETRY
