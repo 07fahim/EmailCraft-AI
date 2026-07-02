@@ -17,41 +17,40 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+_GROQ_RATE_LIMIT_LOCK = threading.Lock()
+_GROQ_LAST_CALL_TIME = 0.0
+_GROQ_MIN_INTERVAL = 10.0
+_GROQ_CONSECUTIVE_429S = 0
 
 class RateLimitedChatGroq(ChatGroq):
     """ChatGroq wrapper with rate limiting to avoid 429 errors."""
     
-    # Class-level rate limiting (shared across all instances)
-    _last_call_time = 0.0
-    _lock = threading.Lock()
-    _min_interval = 10.0  # 10s between calls = max 6 calls/min (free tier ~30/min, but burst limits are tight)
-    _consecutive_429s = 0  # Track consecutive 429s for backoff
-    
     def invoke(self, *args, **kwargs):
         """Rate-limited invoke method with exponential backoff."""
-        with RateLimitedChatGroq._lock:
+        global _GROQ_LAST_CALL_TIME, _GROQ_CONSECUTIVE_429S
+        with _GROQ_RATE_LIMIT_LOCK:
             now = time.time()
-            elapsed = now - RateLimitedChatGroq._last_call_time
+            elapsed = now - _GROQ_LAST_CALL_TIME
             # Apply backoff if we hit rate limits before
-            interval = RateLimitedChatGroq._min_interval * (2 ** RateLimitedChatGroq._consecutive_429s)
+            interval = _GROQ_MIN_INTERVAL * (2 ** _GROQ_CONSECUTIVE_429S)
             if elapsed < interval:
                 sleep_time = interval - elapsed
-                logger.info(f"⏳ Rate limiting: waiting {sleep_time:.1f}s before API call")
+                logger.info(f"Rate limiting: waiting {sleep_time:.1f}s before API call")
                 time.sleep(sleep_time)
-            RateLimitedChatGroq._last_call_time = time.time()
+            _GROQ_LAST_CALL_TIME = time.time()
         
         try:
             result = super().invoke(*args, **kwargs)
             # Success - reset backoff
-            with RateLimitedChatGroq._lock:
-                RateLimitedChatGroq._consecutive_429s = max(0, RateLimitedChatGroq._consecutive_429s - 1)
+            with _GROQ_RATE_LIMIT_LOCK:
+                _GROQ_CONSECUTIVE_429S = max(0, _GROQ_CONSECUTIVE_429S - 1)
             return result
         except Exception as e:
             error_str = str(e)
             if "429" in error_str or "rate limit" in error_str.lower():
-                with RateLimitedChatGroq._lock:
-                    RateLimitedChatGroq._consecutive_429s = min(5, RateLimitedChatGroq._consecutive_429s + 1)
-                logger.warning(f"⚠️ Hit rate limit (429). Consecutive: {RateLimitedChatGroq._consecutive_429s}")
+                with _GROQ_RATE_LIMIT_LOCK:
+                    _GROQ_CONSECUTIVE_429S = min(5, _GROQ_CONSECUTIVE_429S + 1)
+                logger.warning(f"Hit rate limit (429). Consecutive: {_GROQ_CONSECUTIVE_429S}")
             raise
 
 
